@@ -1,0 +1,20 @@
+[project]
+name = "agent-smith"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "anate", email = "anatole.farenc2002@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "dotenv",
+    "requests",
+]
+
+[project.scripts]
+agent-smith = "agent_smith:main"
+
+[build-system]
+requires = ["uv_build>=0.12.6,<0.13.0"]
+build-backend = "uv_build"
