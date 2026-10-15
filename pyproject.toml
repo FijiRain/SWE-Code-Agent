@@ -1,0 +1,19 @@
+[project]
+name = "agent-smith"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "anate", email = "anatole.farenc2002@gmail.com" },
+    { name = "tod"},
+    { name = "alix"}
+]
+requires-python = ">=3.10"
+dependencies = [
+    "flake8",
+    "mypy",
+    "pydantic",
+]
+
+[tool.uv]
+package = false
