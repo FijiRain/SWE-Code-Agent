@@ -18,7 +18,6 @@ resp = requests.post(
         "model": "dots-studio/dots-3-note-preview:free",
         "messages": [{"role": "user", "content": "say hello"}],
         "stop": ["<end_code>", "\nObservation:"],
-        # "messages": [{"role": "user", "content": "Ping"}],
     },
 )
 # print(resp.status_code)
