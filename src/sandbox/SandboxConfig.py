@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from typing import List
 from pathlib import Path
 
@@ -33,6 +33,15 @@ class SandboxConfig(BaseModel):
 
 def load_config(path_sandbox_config: str):
     "Load sandbox config from json file"
-    return SandboxConfig.model_validate_json(
-        Path(path_sandbox_config).read_text()
-    )
+    try:
+        return SandboxConfig.model_validate_json(
+            Path(path_sandbox_config).read_text()
+        )
+    except ValidationError as e:
+        raise ValueError("Config Error") from e
+    except OSError as e:
+        raise RuntimeError(
+            f"Impossible configuration read: {path_sandbox_config}"
+        ) from e
+    except UnicodeDecodeError as e:
+        raise ValueError("invalide file") from e
