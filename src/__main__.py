@@ -1,7 +1,11 @@
-from .sandbox import run
+from .sandbox.api import Sandbox
+from .sandbox.SandboxConfig import load_config
 
-ns = {}
-print(run("x = 5", ns))
-print(ns)
-print(run("print(x * 2)", ns))
-print(run("1 / 0", ns))
+sand = Sandbox(load_config("sandbox_template.json"))
+
+result = sand.execute("print('a')")
+print(result.stdout, end="")
+# result = sand.execute("print(1/ 0)")
+# print(result.error)
+# result = sand.execute("final_answer('b')")
+# print(result.final_answer)
