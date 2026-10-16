@@ -32,7 +32,7 @@ class SandboxConfig(BaseModel):
 
 
 def load_config(path_sandbox_config: str):
-    "Load sandbox config from json file"
+    """Load sandbox config from json file"""
     try:
         return SandboxConfig.model_validate_json(
             Path(path_sandbox_config).read_text()
@@ -44,4 +44,4 @@ def load_config(path_sandbox_config: str):
             f"Impossible configuration read: {path_sandbox_config}"
         ) from e
     except UnicodeDecodeError as e:
-        raise ValueError("invalide file") from e
+        raise ValueError("invalid file") from e
