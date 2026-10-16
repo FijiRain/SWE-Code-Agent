@@ -49,6 +49,7 @@ class Sandbox:
         self._start_work_process()
 
     def _start_work_process(self) -> None:
+        """Init the launche of work process to execut code"""
         ctx = mp.get_context("spawn")
         self._conn, child_con = ctx.Pipe()
         self._process = ctx.Process(target=code_worker_loop, args=(child_con,))
