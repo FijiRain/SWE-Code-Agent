@@ -7,6 +7,8 @@ import multiprocessing as mp
 from multiprocessing.connection import Connection
 import io
 
+STARTUP_TIMEOUT = 10
+
 
 def code_worker_loop(conn: Connection) -> None:
     namespace: Dict = {}
@@ -15,6 +17,7 @@ def code_worker_loop(conn: Connection) -> None:
         raise FinalAnswerSignal(value)
     namespace["final_answer"] = final_answer
 
+    conn.send("ready")
     while True:
         code = conn.recv()
         if code is None:
@@ -55,19 +58,47 @@ class Sandbox:
         self._process = ctx.Process(target=code_worker_loop, args=(child_con,))
         self._process.start()
         child_con.close()
+        if not self._conn.poll(STARTUP_TIMEOUT):
+            self._process.kill()
+            raise RuntimeError("The worker process failed to start")
+        self._conn.recv()
+
+    def _restart_work_process(self) -> None:
+        self.close()
+        self._start_work_process()
 
     def execute(self, code: str) -> ExecutionResult:
         """Execute the code"""
+        timed_out = False
         try:
             self._conn.send(code)
-            return self._conn.recv()
+            if self._conn.poll(self.__config.max_execution_time_seconds):
+                return self._conn.recv()
+            timed_out = True
         except (EOFError, OSError):
-            self.close()
-            self._start_work_process()
-            return ExecutionResult(error=("The execution environment crashed "
-                                          "(e.g. os._exit). "
-                                          "A new empty environment was "
-                                          "started: all variables are lost."))
+            pass
+        self._restart_work_process()
+        if timed_out:
+            return ExecutionResult(
+                error=(
+                        f"TimeoutError: your code did not finish within "
+                        f"{self.__config.max_execution_time_seconds} "
+                        "seconds and was stopped "
+                        "(possible infinite loop or too heavy computation). "
+                        "The execution environment was restarted: all "
+                        "variables and imports "
+                        "are lost, you must redefine them. "
+                        "Output printed before the timeout is not available."
+                    ),
+                timed_out=True
+                    )
+        return ExecutionResult(
+                error=(
+                        "The execution environment crashed "
+                        "(e.g. os._exit). "
+                        "A new empty environment was "
+                        "started: all variables are lost."
+                ))
 
     def get_manual(self) -> str:
         """Return the sandbox manual"""
@@ -79,5 +110,8 @@ class Sandbox:
             self._conn.send(None)
         except (EOFError, OSError):
             pass
-        self._process.join()
+        self._process.join(timeout=1)
+        if self._process.is_alive():
+            self._process.kill()
+            self._process.join()
         self._conn.close()
