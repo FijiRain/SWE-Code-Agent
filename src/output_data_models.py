@@ -86,4 +86,3 @@ class StepMetrics(BaseModel):
                          description="Number of LLM API retries before "
                          "getting a successful response "
                          "(0 = first attempt succeeded)")
-
