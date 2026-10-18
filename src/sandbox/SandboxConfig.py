@@ -27,6 +27,46 @@ class SandboxConfig(BaseModel):
             "/testbed", "/tmp/agent"
         ]
     )
+    authorized_builtins: List[str] = Field(
+        default_factory=lambda: [
+            "abs", "aiter", "all", "anext", "any", "ascii",
+            "bin", "bool", "bytearray", "bytes",
+            "callable", "chr", "classmethod", "complex",
+            "dict", "dir", "divmod", "enumerate",
+            "filter", "float", "format", "frozenset",
+            "hasattr", "hash", "hex",
+            "id", "int", "isinstance", "issubclass", "iter",
+            "len", "list", "map", "max", "memoryview",
+            "min", "next", "object", "oct", "ord", "pow",
+            "print", "property", "range", "repr", "reversed", "round",
+            "set", "slice", "sorted", "staticmethod", "str",
+            "sum", "super", "tuple", "type", "zip",
+            "__build_class__",
+            "False", "True", "None", "Ellipsis", "NotImplemented",
+            "__debug__",
+            "Exception", "ArithmeticError", "AssertionError",
+            "AttributeError", "BufferError", "BytesWarning",
+            "DeprecationWarning", "EOFError", "FloatingPointError",
+            "FutureWarning", "GeneratorExit", "ImportError",
+            "ModuleNotFoundError", "LookupError", "IndexError", "KeyError",
+            "MemoryError", "NameError", "UnboundLocalError", "OSError",
+            "BlockingIOError", "ChildProcessError", "ConnectionError",
+            "BrokenPipeError", "ConnectionAbortedError",
+            "ConnectionRefusedError", "ConnectionResetError",
+            "FileExistsError", "FileNotFoundError", "InterruptedError",
+            "IsADirectoryError", "NotADirectoryError", "PermissionError",
+            "ProcessLookupError", "TimeoutError", "ReferenceError",
+            "RuntimeError", "NotImplementedError", "RecursionError",
+            "StopAsyncIteration", "StopIteration", "SyntaxError",
+            "IndentationError", "TabError", "SystemError", "SystemExit",
+            "KeyboardInterrupt", "TypeError", "ValueError", "UnicodeError",
+            "UnicodeDecodeError", "UnicodeEncodeError",
+            "UnicodeTranslateError", "Warning", "UserWarning",
+            "RuntimeWarning", "SyntaxWarning", "ImportWarning",
+            "PendingDeprecationWarning", "ResourceWarning",
+            "EncodingWarning", "ZeroDivisionError", "OverflowError",
+        ]
+    )
     max_execution_time_seconds: int = 30
     max_memory_mb: int = 512
 

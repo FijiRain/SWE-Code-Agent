@@ -1,24 +1,40 @@
 from .SandboxConfig import SandboxConfig
 
 from types import ModuleType
-from typing import Any, List, Callable, Tuple, Optional, Sequence, Mapping
+from typing import (Any, List, Callable,
+                    Optional, Sequence,
+                    Mapping, Dict)
 import builtins
 
 
-def make_allowed_list_import(authorized_imports: List[str]) -> List[str]:
-    allowed_import: List[str] = []
-    for name in authorized_imports:
-        if name.endswith(".*"):
-            ...
-        else:
-            allowed_import.append(name)
+def valid_module(module: ModuleType,
+                 authorized_imports: List[str]) -> ModuleType:
+    new_mod = ModuleType(module.__name__)
+    for name in dir(module):
+        if name.startswith('_'):
+            continue
+
+        obj = getattr(module, name)
+        if isinstance(obj, ModuleType):
+            if not check_allowed_import(obj.__name__, authorized_imports):
+                continue
+        setattr(new_mod, name, obj)
+    return new_mod
 
 
 def check_allowed_import(name: str, authorized_import: List[str]) -> bool:
-    return name in authorized_import
+    for pattern in authorized_import:
+        if pattern.endswith(".*"):
+            if name.startswith(pattern[:-1]):
+                return True
+        elif pattern == name:
+            return True
+    return False
 
 
 def make_import(authorized: List[str]) -> Callable[..., ModuleType]:
+    cache: Dict[str, ModuleType] = {}
+
     def restricted_import(
             name: str,
             globals: Optional[Mapping[str, Any]] = None,
@@ -26,7 +42,23 @@ def make_import(authorized: List[str]) -> Callable[..., ModuleType]:
             fromlist: Optional[Sequence[str]] = (),
             level: int = 0
             ) -> ModuleType:
-        if not check_allowed_import(name, authorized):
-            raise ImportError("Error: authorized is not valid import")
-        return builtins.__import__(name, globals, locals, fromlist, level)
+        if level != 0 or not check_allowed_import(name, authorized):
+            raise ImportError(
+                f"Import of '{name}' is not allowed. "
+                f"Authorized modules: {', '.join(authorized)}"
+            )
+        module = builtins.__import__(name, globals, locals, fromlist, level)
+        if module.__name__ not in cache:
+            cache[module.__name__] = valid_module(module, authorized)
+        return cache[module.__name__]
     return restricted_import
+
+
+def build_builtins(config: SandboxConfig) -> Dict:
+    my_bultins = {
+        "__import__": make_import(config.authorized_imports)
+    }
+
+    for name in config.authorized_builtins:
+        my_bultins.update({f"{name}": name})
+    return my_bultins

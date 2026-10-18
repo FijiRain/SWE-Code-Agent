@@ -1,5 +1,6 @@
 from .ExecutionResult import ExecutionResult, FinalAnswerSignal
 from .SandboxConfig import SandboxConfig
+from .restricted_sandbox import build_builtins
 
 from typing import Dict, List
 from contextlib import redirect_stdout
@@ -31,9 +32,12 @@ class PipeWriter:
         pass
 
 
-def code_worker_loop(conn: Connection) -> None:
-    namespace: Dict = {}
-
+def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
+    namespace: Dict = {
+        "__builtins__": build_builtins(config),
+        "__name__": "__sandbox__"
+    }
+    
     def final_answer(value):
         raise FinalAnswerSignal(value)
     namespace["final_answer"] = final_answer
@@ -74,7 +78,8 @@ class Sandbox:
         """Init the launche of work process to execut code"""
         ctx = mp.get_context("spawn")
         self._conn, child_con = ctx.Pipe()
-        self._process = ctx.Process(target=code_worker_loop, args=(child_con,))
+        self._process = ctx.Process(target=code_worker_loop,
+                                    args=(child_con, self.__config))
         self._process.start()
         child_con.close()
         if not self._conn.poll(STARTUP_TIMEOUT):
