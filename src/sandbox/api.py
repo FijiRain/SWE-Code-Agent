@@ -47,7 +47,10 @@ def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
 
     conn.send("ready")
     while True:
-        code = conn.recv()
+        try:
+            code = conn.recv()
+        except EOFError:
+            break
         if code is None:
             break
 

@@ -164,7 +164,18 @@ collections.abc.Mapping
 
 
 def main():
-    test_timout()
+    sand = Sandbox(load_config("sandbox_template.json"))
+
+    result = sand.execute("""
+with open("test/test.txt") as f:
+    print(f.read())
+    """)
+    print("################################################")
+    print(f"STDOUT: {result.stdout}")
+    print(f"ERROR: {result.error}")
+    print()
+
+    sand.close()
 
 
 if __name__ == "__main__":

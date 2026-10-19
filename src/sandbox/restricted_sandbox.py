@@ -5,6 +5,7 @@ from typing import (Any, List, Callable,
                     Optional, Sequence,
                     Mapping, Dict)
 import builtins
+import os
 
 
 def valid_module(module: ModuleType,
@@ -54,6 +55,30 @@ def make_import(authorized: List[str]) -> Callable[..., ModuleType]:
     return restricted_import
 
 
+def check_path_allowed(path: str, allowed_dir: List[str]) -> bool:
+    real = os.path.realpath(path)
+    for directory in allowed_dir:
+        base = os.path.realpath(directory)
+        if os.path.commonpath([real, base]) == base:
+            return True
+    return False
+
+
+def make_open(allowed_dir: List[str]) -> Callable[..., Any]:
+    def restricted_open(file, *args, **kwargs):
+        if not isinstance(file, (str, bytes, os.PathLike)):
+            raise PermissionError("open() only accepts file paths")
+        path = os.fsdecode(file)
+        if not check_path_allowed(path, allowed_dir):
+            raise PermissionError(
+                f"Access to '{path}' is not allowed. "
+                f"Allowed directories (use absolute paths): "
+                f"{', '.join(allowed_dir)}"
+            )
+        return builtins.open(file, *args, **kwargs)
+    return restricted_open
+
+
 def build_builtins(config: SandboxConfig) -> Dict:
     safe_builtins = {
         name: getattr(builtins, name)
@@ -61,4 +86,5 @@ def build_builtins(config: SandboxConfig) -> Dict:
         if hasattr(builtins, name)
     }
     safe_builtins["__import__"] = make_import(config.authorized_imports)
+    safe_builtins["open"] = make_open(config.allowed_directories)
     return safe_builtins

@@ -11,7 +11,7 @@
         "array", "cmath"
     ],
     "allowed_directories": [
-        "/testbed", "/tmp/agent"
+        "/testbed", "/tmp/agent", "./test/"
     ],
     "max_execution_time_seconds": 3,
     "max_memory_mb": 512

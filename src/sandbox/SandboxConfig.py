@@ -24,7 +24,7 @@ class SandboxConfig(BaseModel):
     )
     allowed_directories: List[str] = Field(
         default_factory=lambda: [
-            "/testbed", "/tmp/agent"
+            "/testbed", "/tmp/agent",
         ]
     )
     authorized_builtins: List[str] = Field(
