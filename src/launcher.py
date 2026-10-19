@@ -1,0 +1,40 @@
+from dotenv import load_dotenv
+from src.models.input_data_models import MBPPTaskInput
+from src.orchestrator import Orchestrator
+
+load_dotenv()
+
+
+def run_MBPP(task_file: str, output: str,
+             model_name: str, provider_url: str) -> None:
+
+    with open(task_file, 'r') as f:
+        task = MBPPTaskInput.model_validate_json(f.read())
+
+    orchestrator = Orchestrator(model_name, provider_url)
+    print(orchestrator.answer) # c'est un test
+
+    # truc du genre qui renvoie un SolutionOutput:
+    # res = orchestrator.run(task)
+
+    # A la fin ouvrir le fichier au chemin output et faire
+    # un model_dump_json() pour ecrire res dans un fichier solution.json
+
+
+def run_SWE():
+    # TODO
+    ...
+
+
+# uv run python -m agent_mbpp
+# --task-file ../cache/mbpp_task.json
+# --output ../cache/mbpp_solution.json
+# --model-name "model/name"
+# --provider-url "https://provider.api/v1"
+
+# pour test
+# uv run python -m agent_mbpp
+# --task-file test_mbpp_task.json
+# --output ../cache/mbpp_solution.json
+# --model-name "openrouter/free"
+# --provider-url "https://openrouter.api/v1"

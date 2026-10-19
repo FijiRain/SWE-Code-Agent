@@ -31,3 +31,9 @@ class SWEBenchTaskInput(BaseModel):
     eval_script: str = Field(...,
                              description="Bash script to run inside "
                              "the container to evaluate the patch")
+    hints_text: str = Field(default="",
+                            description="Optional hints about "
+                            "the issue (may be empty)")
+    repo: str = Field(default="",
+                      description="Repository name "
+                      "(e.g., 'sympy/sympy')")
