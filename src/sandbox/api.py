@@ -35,10 +35,13 @@ class PipeWriter:
 def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
     namespace: Dict = {
         "__builtins__": build_builtins(config),
-        "__name__": "__sandbox__"
+        "__name__": config.name_space_global,
     }
-    
+
+    state_final_answer = {"answer": None}
+
     def final_answer(value):
+        state_final_answer["answer"] = str(value)
         raise FinalAnswerSignal(value)
     namespace["final_answer"] = final_answer
 

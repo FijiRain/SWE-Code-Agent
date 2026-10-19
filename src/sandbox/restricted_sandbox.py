@@ -55,10 +55,10 @@ def make_import(authorized: List[str]) -> Callable[..., ModuleType]:
 
 
 def build_builtins(config: SandboxConfig) -> Dict:
-    my_bultins = {
-        "__import__": make_import(config.authorized_imports)
+    safe_builtins = {
+        name: getattr(builtins, name)
+        for name in config.authorized_builtins
+        if hasattr(builtins, name)
     }
-
-    for name in config.authorized_builtins:
-        my_bultins.update({f"{name}": name})
-    return my_bultins
+    safe_builtins["__import__"] = make_import(config.authorized_imports)
+    return safe_builtins

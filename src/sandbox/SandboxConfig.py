@@ -67,6 +67,8 @@ class SandboxConfig(BaseModel):
             "EncodingWarning", "ZeroDivisionError", "OverflowError",
         ]
     )
+    name_space_global: str = Field(default="__sandbox__",
+                                   description="global name space")
     max_execution_time_seconds: int = 30
     max_memory_mb: int = 512
 
@@ -78,10 +80,10 @@ def load_config(path_sandbox_config: str):
             Path(path_sandbox_config).read_text()
         )
     except ValidationError as e:
-        raise ValueError("Config Error") from e
+        raise ValueError(f"Invalid sandbox config: {e}") from e
     except OSError as e:
         raise RuntimeError(
             f"Impossible configuration read: {path_sandbox_config}"
         ) from e
     except UnicodeDecodeError as e:
-        raise ValueError("invalid file") from e
+        raise ValueError(f"Invalid file: {e}") from e
