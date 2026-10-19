@@ -165,17 +165,19 @@ collections.abc.Mapping
 
 def main():
     sand = Sandbox(load_config("sandbox_template.json"))
-
-    result = sand.execute("""
-with open("test/test.txt") as f:
-    print(f.read())
-    """)
-    print("################################################")
-    print(f"STDOUT: {result.stdout}")
-    print(f"ERROR: {result.error}")
-    print()
-
-    sand.close()
+    try:
+        tests = {
+            "1 sanity": 'print(1)',
+            "2 big alloc": 'x = "a" * (10**9)',
+            "3 progressive": 'x = []\nwhile True:\n    x.append("a" * 10**6)',
+            "4 survives": 'y = 1',
+            "5 y still here": 'print(y)',
+        }
+        for label, code in tests.items():
+            r = sand.execute(code)
+            print(label, "->", repr(r.stdout), repr(r.error))
+    finally:
+        sand.close()
 
 
 if __name__ == "__main__":

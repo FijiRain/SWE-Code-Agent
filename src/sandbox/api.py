@@ -1,6 +1,6 @@
 from .ExecutionResult import ExecutionResult, FinalAnswerSignal
 from .SandboxConfig import SandboxConfig
-from .restricted_sandbox import build_builtins
+from .restricted_sandbox import build_builtins, apply_memory_restricted
 
 from typing import Dict, List
 from contextlib import redirect_stdout
@@ -33,9 +33,10 @@ class PipeWriter:
 
 
 def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
+    apply_memory_restricted(config.max_memory_mb)
     namespace: Dict = {
         "__builtins__": build_builtins(config),
-        "__name__": config.name_space_global,
+        "__name__": config.sandbox_name,
     }
 
     state_final_answer = {"answer": None}
@@ -54,6 +55,7 @@ def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
         if code is None:
             break
 
+        state_final_answer["answer"] = None
         buffer = PipeWriter(conn)
         exec_res = ExecutionResult()
         try:
@@ -63,11 +65,18 @@ def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
             exec_res.error = ("SystemExit: exit()/sys.exit() are not allowed "
                               "in the sandbox. "
                               "Call final_answer(...) to finish the task.")
-        except FinalAnswerSignal as signal:
-            exec_res.final_answer = str(signal.value)
+        except FinalAnswerSignal:
+            pass
+        except MemoryError:
+            exec_res.error = (
+                f"MemoryError: your code exceeded the memory limit "
+                f"({config.max_memory_mb} MB). Use less memory "
+                "(smaller data, generators, no huge lists)."
+            )
         except Exception as e:
             exec_res.error = f"Error {type(e).__name__}: {e}"
 
+        exec_res.final_answer = state_final_answer['answer']
         conn.send(("result", exec_res))
 
 
@@ -92,7 +101,16 @@ class Sandbox:
             self._process.kill()
             self._conn.close()
             raise RuntimeError("The worker process failed to start")
-        self._conn.recv()
+        try:
+            self._conn.recv()
+        except EOFError:
+            self._process.join()
+            self._conn.close()
+            raise RuntimeError(
+                "The worker process died during startup "
+                f"(exit code {self._process.exitcode}), see "
+                "its traceback above"
+            )
 
     def _restart_work_process(self) -> None:
         self.close()

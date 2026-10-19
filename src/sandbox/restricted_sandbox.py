@@ -6,6 +6,7 @@ from typing import (Any, List, Callable,
                     Mapping, Dict)
 import builtins
 import os
+import resource
 
 
 def valid_module(module: ModuleType,
@@ -34,6 +35,7 @@ def check_allowed_import(name: str, authorized_import: List[str]) -> bool:
 
 
 def make_import(authorized: List[str]) -> Callable[..., ModuleType]:
+    """Make restricted builtin __import__"""
     cache: Dict[str, ModuleType] = {}
 
     def restricted_import(
@@ -65,6 +67,7 @@ def check_path_allowed(path: str, allowed_dir: List[str]) -> bool:
 
 
 def make_open(allowed_dir: List[str]) -> Callable[..., Any]:
+    """make builtin restricted open builtin"""
     def restricted_open(file, *args, **kwargs):
         if not isinstance(file, (str, bytes, os.PathLike)):
             raise PermissionError("open() only accepts file paths")
@@ -80,6 +83,7 @@ def make_open(allowed_dir: List[str]) -> Callable[..., Any]:
 
 
 def build_builtins(config: SandboxConfig) -> Dict:
+    """ Create authorize builtin"""
     safe_builtins = {
         name: getattr(builtins, name)
         for name in config.authorized_builtins
@@ -88,3 +92,9 @@ def build_builtins(config: SandboxConfig) -> Dict:
     safe_builtins["__import__"] = make_import(config.authorized_imports)
     safe_builtins["open"] = make_open(config.allowed_directories)
     return safe_builtins
+
+
+def apply_memory_restricted(max_memory_mb: int) -> None:
+    """Cap the address space of the current process."""
+    limits = max_memory_mb * 1024 * 1024
+    resource.setrlimit(resource.RLIMIT_AS, (limits, limits))

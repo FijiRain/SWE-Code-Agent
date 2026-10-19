@@ -67,8 +67,8 @@ class SandboxConfig(BaseModel):
             "EncodingWarning", "ZeroDivisionError", "OverflowError",
         ]
     )
-    name_space_global: str = Field(default="__sandbox__",
-                                   description="global name space")
+    sandbox_name: str = Field(default="__sandbox__",
+                              description="global name space")
     max_execution_time_seconds: int = 30
     max_memory_mb: int = 512
 
