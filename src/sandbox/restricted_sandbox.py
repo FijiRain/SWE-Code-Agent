@@ -3,10 +3,12 @@ from .SandboxConfig import SandboxConfig
 from types import ModuleType
 from typing import (Any, List, Callable,
                     Optional, Sequence,
-                    Mapping, Dict)
+                    Mapping, Dict,
+                    Tuple)
 import builtins
 import os
 import resource
+import socket
 
 
 def valid_module(module: ModuleType,
@@ -98,3 +100,41 @@ def apply_memory_restricted(max_memory_mb: int) -> None:
     """Cap the address space of the current process."""
     limits = max_memory_mb * 1024 * 1024
     resource.setrlimit(resource.RLIMIT_AS, (limits, limits))
+
+
+def truncke_output(output: str, max_len: int) -> Tuple[str, bool]:
+    """Truncke output with max size, return new size of new output and add
+    message to inform trucatded output
+    Return :
+        - new output -> str
+        - if output has truncked -> bool
+    """
+    len_output = len(output)
+    is_truncke = False
+    if len_output > max_len:
+        new_output = output[:max_len]
+        len_new_output = len(new_output)
+        new_output += (
+                "\n\n[output truncated: showing "
+                f"first {len_new_output} of "
+                f"{len_output} characters]"
+        )
+        is_truncke = True
+        return (new_output, is_truncke)
+    return (output, False)
+
+
+def restricted_conn() -> None:
+    def refuse(*args, **kwargs) -> None:
+        raise PermissionError("Network access is disabled in the sandbox")
+
+    class BlockedSocket(socket.socket):
+        def __init__(self, *args, **kwargs):
+            refuse()
+
+    socket.socket = BlockedSocket
+    socket.SocketType = BlockedSocket
+    for name in ("create_connection", "create_server", "fromfd",
+                 "getaddrinfo", "gethostbyname", "gethostbyname_ex",
+                 "gethostbyaddr", "getnameinfo"):
+        setattr(socket, name, refuse)

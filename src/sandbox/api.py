@@ -1,6 +1,9 @@
 from .ExecutionResult import ExecutionResult, FinalAnswerSignal
 from .SandboxConfig import SandboxConfig
-from .restricted_sandbox import build_builtins, apply_memory_restricted
+from .restricted_sandbox import (
+    build_builtins, apply_memory_restricted,
+    truncke_output, restricted_conn
+    )
 
 from typing import Dict, List
 from contextlib import redirect_stdout
@@ -34,6 +37,7 @@ class PipeWriter:
 
 def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
     apply_memory_restricted(config.max_memory_mb)
+    restricted_conn()
     namespace: Dict = {
         "__builtins__": build_builtins(config),
         "__name__": config.sandbox_name,
@@ -132,15 +136,24 @@ class Sandbox:
                 if state == "stdout":
                     chunks.append(payload)
                 else:
-                    payload.stdout = "".join(chunks)
+                    output = "".join(chunks)
+                    output, is_truncate = truncke_output(
+                        output, self.__config.max_len_output
+                    )
+                    payload.stdout = output
+                    payload.truncated = is_truncate
                     return payload
 
         except (EOFError, OSError):
             pass
         self._restart_work_process()
+        output = "".join(chunks)
+        output, is_truncate = truncke_output(
+            output, self.__config.max_len_output
+        )
         if timed_out:
             return ExecutionResult(
-                stdout="".join(chunks),
+                stdout=output,
                 error=(
                         f"TimeoutError: your code did not finish within "
                         f"{self.__config.max_execution_time_seconds} "
@@ -150,16 +163,19 @@ class Sandbox:
                         "variables and imports "
                         "are lost, you must redefine them. "
                     ),
-                timed_out=True
+                timed_out=True,
+                truncated=is_truncate
                     )
         return ExecutionResult(
-                stdout="".join(chunks),
+                stdout=output,
                 error=(
                         "The execution environment crashed "
                         "(e.g. os._exit). "
                         "A new empty environment was "
                         "started: all variables are lost."
-                ))
+                ),
+                truncated=is_truncate
+            )
 
     def get_manual(self) -> str:
         """Return the sandbox manual"""

@@ -71,6 +71,7 @@ class SandboxConfig(BaseModel):
                               description="global name space")
     max_execution_time_seconds: int = 30
     max_memory_mb: int = 512
+    max_len_output: int = 100
 
 
 def load_config(path_sandbox_config: str):

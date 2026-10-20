@@ -14,5 +14,6 @@
         "/testbed", "/tmp/agent", "./test/"
     ],
     "max_execution_time_seconds": 3,
-    "max_memory_mb": 512
+    "max_memory_mb": 512,
+    "max_len_ouptput": 3000
 }
