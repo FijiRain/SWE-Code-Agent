@@ -138,7 +138,7 @@ class Sandbox:
                 else:
                     output = "".join(chunks)
                     output, is_truncate = truncke_output(
-                        output, self.__config.max_len_output
+                        output, self.__config.max_len_output    
                     )
                     payload.stdout = output
                     payload.truncated = is_truncate
