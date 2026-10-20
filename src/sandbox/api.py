@@ -10,6 +10,7 @@ from contextlib import redirect_stdout
 import multiprocessing as mp
 from multiprocessing.connection import Connection
 import time
+import signal
 
 
 STARTUP_TIMEOUT = 10
@@ -36,6 +37,7 @@ class PipeWriter:
 
 
 def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     apply_memory_restricted(config.max_memory_mb)
     restricted_conn()
     namespace: Dict = {
@@ -43,7 +45,8 @@ def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
         "__name__": config.sandbox_name,
     }
 
-    state_final_answer = {"answer": None}
+    state_final_answer: Dict = {}
+    state_final_answer["answer"] = None
 
     def final_answer(value):
         state_final_answer["answer"] = str(value)
@@ -69,6 +72,11 @@ def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
             exec_res.error = ("SystemExit: exit()/sys.exit() are not allowed "
                               "in the sandbox. "
                               "Call final_answer(...) to finish the task.")
+        except KeyboardInterrupt:
+            exec_res.error = (
+                "KeyboardInterrupt: raising it is not allowed in the "
+                "sandbox. Call final_answer(...) to finish the task."
+            )
         except FinalAnswerSignal:
             pass
         except MemoryError:
@@ -98,7 +106,8 @@ class Sandbox:
         ctx = mp.get_context("spawn")
         self._conn, child_con = ctx.Pipe()
         self._process = ctx.Process(target=code_worker_loop,
-                                    args=(child_con, self.__config))
+                                    args=(child_con, self.__config),
+                                    daemon=True)
         self._process.start()
         child_con.close()
         if not self._conn.poll(STARTUP_TIMEOUT):
@@ -138,7 +147,7 @@ class Sandbox:
                 else:
                     output = "".join(chunks)
                     output, is_truncate = truncke_output(
-                        output, self.__config.max_len_output    
+                        output, self.__config.max_len_output
                     )
                     payload.stdout = output
                     payload.truncated = is_truncate
@@ -146,6 +155,9 @@ class Sandbox:
 
         except (EOFError, OSError):
             pass
+        except KeyboardInterrupt:
+            self.close()
+            raise
         self._restart_work_process()
         output = "".join(chunks)
         output, is_truncate = truncke_output(
