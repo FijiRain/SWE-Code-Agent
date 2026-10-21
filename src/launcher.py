@@ -8,7 +8,7 @@ load_dotenv()
 
 def run_MBPP(task_file: str, output: str,
              model_name: str, provider_url: str) -> None:
-
+    """Load an MBPP task, run the orchestrator, and write the solution."""
     try:
         with open(task_file, 'r') as f:
             task = MBPPTaskInput.model_validate_json(f.read())
@@ -22,13 +22,14 @@ def run_MBPP(task_file: str, output: str,
     print(orchestrator.answer)  # c'est un test
 
     # truc du genre qui renvoie un SolutionOutput:
-    # res = orchestrator.run(task)
+    res = orchestrator.complete_task(task)
 
     # A la fin ouvrir le fichier au chemin output et faire
     # un model_dump_json() pour ecrire res dans un fichier solution.json
 
 
 def run_SWE():
+    """Load a SWE-bench task, run the orchestrator, and write the patch."""
     # TODO
     ...
 
