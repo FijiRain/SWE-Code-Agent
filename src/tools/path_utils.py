@@ -9,6 +9,7 @@ def get_testbed_root() -> Path:
         path = Path.cwd().resolve()
     return path
 
+
 def resolve_testbed_path(user_path: str) -> Path:
     testbed_root = get_testbed_root()
     path = Path(user_path)
