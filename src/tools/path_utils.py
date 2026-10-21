@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+
 def get_testbed_root() -> Path:
     value = os.environ.get("TESTBED_PATH")
     if value and value.strip():
