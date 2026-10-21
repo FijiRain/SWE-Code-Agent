@@ -1,4 +1,4 @@
-from src.tools.path_utils import resolve_testbed_path
+from src.tools.path_utils import resolve_testbed_path, get_testbed_root
 
 
 def read_file(filepath: str, start_line: int = 1, end_line: int = -1) -> str:
@@ -68,5 +68,37 @@ def edit_file(filepath: str, old_str: str, new_str: str) -> str:
     return (f"Successfully updated '{filepath}'.")
 
 
-def list_files(directory, pattern) -> None:
-    pass
+def list_files(directory: str = ".", pattern: str = "*") -> str:
+    try:
+        path = resolve_testbed_path(directory)
+    except ValueError as e:
+        return f"Error: {e}"
+
+    if not path.exists():
+        return f"Error: Directory not found at '{directory}'"
+
+    if not path.is_dir():
+        return f"Error: '{directory}' is not a directory"
+
+    files = []
+    for p in path.rglob(pattern):
+        if not p.is_file():
+            continue
+        if any(part.startswith(".") or part == "__pycache__" for
+               part in p.parts):
+            continue
+        files.append(p)
+    if not files:
+        return (f"No files matching '{pattern}' found in '{directory}'.")
+    files = sorted(files)
+
+    total_count = len(files)
+    max_results = 100
+    warn_msg = ""
+    if total_count > max_results:
+        files = files[:max_results]
+        warn_msg = (f"\n... [Showing first {max_results} of {total_count} "
+                    "files. Use a more specific subfolder or pattern.]")
+
+    result = "\n".join(str(p.relative_to(get_testbed_root())) for p in files)
+    return result + warn_msg
