@@ -7,6 +7,7 @@ from .key_manager import KeyManager
 from .exception import KeyQuotaError, ServerError, FatalError
 from .models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from .models.output_data_models import SolutionOutput
+from .react_loop import ReactLoop
 
 
 class Orchestrator:
@@ -77,7 +78,7 @@ class Orchestrator:
         except Exception as e:
             raise FatalError(f"Unexpected error: {e}") from e
 
-    def query_llm(self):
+    def query_llm(self) -> str:
         """Query the LLM with retry logic, key rotation, and error handling."""
         self.step_retries = 0
         self.step_input_tokens = 0
@@ -126,6 +127,7 @@ class Orchestrator:
                       task: MBPPTaskInput | SWEBenchTaskInput
                       ) -> SolutionOutput:
         """Execute the agentic loop to solve the task and return solution."""
+        loop = ReactLoop(task)
         # prepa le prompt avec la consigne de task "task_definition"
         # lance une boucle while iterations < max_iterations:
         # a chaque tour on applique le pattern ReAct et

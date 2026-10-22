@@ -21,9 +21,8 @@ def run_MBPP(task_file: str, output: str,
     orchestrator = Orchestrator(model_name, provider_url)
     print(orchestrator.answer)  # c'est un test
 
-    # truc du genre qui renvoie un SolutionOutput:
     res = orchestrator.complete_task(task)
-
+    print(res)
     # A la fin ouvrir le fichier au chemin output et faire
     # un model_dump_json() pour ecrire res dans un fichier solution.json
 
