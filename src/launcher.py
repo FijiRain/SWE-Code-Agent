@@ -19,7 +19,7 @@ def run_MBPP(task_file: str, output: str,
             f"Invalid MBPP task config in '{task_file}':\n{e}") from e
 
     orchestrator = Orchestrator(model_name, provider_url)
-    print(orchestrator.answer)  # c'est un test
+    # print(orchestrator.answer)  # c'est un test
 
     res = orchestrator.complete_task(task)
     print(res)

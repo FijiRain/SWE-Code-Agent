@@ -7,7 +7,7 @@ from .key_manager import KeyManager
 from .exception import KeyQuotaError, ServerError, FatalError
 from .models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from .models.output_data_models import SolutionOutput
-from .react_loop import ReactLoop
+from .prompts import PROMPT_MBPP, PROMPT_SWE
 
 
 class Orchestrator:
@@ -31,8 +31,8 @@ class Orchestrator:
 
         self.context = ...
         self.sandbox = ...  # Anatole ici
-        self.sys_prompt = ...
-        self.answer = self.query_llm()  # pour le test seulement
+        self.sys_prompt = ""
+        # self.answer = self.query_llm()  # pour le test seulement
 
     def load_provider(self, url: str) -> str:
         """Identify the matching provider environment variable from the URL."""
@@ -127,7 +127,13 @@ class Orchestrator:
                       task: MBPPTaskInput | SWEBenchTaskInput
                       ) -> SolutionOutput:
         """Execute the agentic loop to solve the task and return solution."""
-        loop = ReactLoop(task)
+        if task == MBPPTaskInput:
+            self.sys_prompt = PROMPT_MBPP
+        else:
+            self.sys_prompt = PROMPT_SWE
+
+        messages =  []
+        
         # prepa le prompt avec la consigne de task "task_definition"
         # lance une boucle while iterations < max_iterations:
         # a chaque tour on applique le pattern ReAct et
