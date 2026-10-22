@@ -1,6 +1,14 @@
 # flake8: noqa
 
-PROMPT_MBPP = f"""
+from .models.input_data_models import MBPPTaskInput
+
+FAKE_SANDBOX_MANUAL_MBPP = '''
+- run_tests(code: str, test_list: list[str]) -> dict:                                                                 
+    Execute the candidate Python code against the test assertions.                                                    
+    Returns {"success": bool, "output": str}.
+'''
+
+PROMPT_MBPP = """
 You are an autonomous Python Code Agent operating inside a secure, stateful Python sandbox.
 Your goal is to solve the given Python programming task within a maximum of 10 iterations.
 
@@ -25,15 +33,7 @@ CRITICAL FORMAT RULES:
 - No Exit Calls: Do NOT call sys.exit(), exit(), or quit().
 
 3. AVAILABLE TOOLS
-The following functions are pre-loaded in your global namespace. Call them directly as standard Python functions:
-- read_file(filepath, start_line, end_line) # Read the content of a file with line numbers.
-- edit_file(filepath, old_str, new_str) # Replace an exact string in a file with a new string
-- list_files(directory, pattern) # List files in a directory matching a given pattern.
-- search_code(pattern, file_pattern) # Perform a grep-like search in the codebase
-- search_function_or_class_definition_in_code(name) # Find the definition of a function or a class.
-- find_references(name, filepath, line) # Find all usages of a symbol (function or class).
-- run_tests() # Execute the evaluation script.
-- run_command(command, workdir) # Execute a shell command in the specified working directory.
+The following functions are pre-loaded in your global namespace. Call them directly as standard Python functions: {sandbox_manual}
 
 
 4. SOLVING WORKFLOW
@@ -62,5 +62,28 @@ final_answer('''def is_even(n):
     return n % 2 == 0
 ''')
 """
+
+def build_mbpp_sys_prompt(sandbox_manual: str = FAKE_SANDBOX_MANUAL_MBPP) -> str:
+    """Return the MBPP system prompt filled with the sandbox manual.""" 
+    return PROMPT_MBPP.format(sandbox_manual=sandbox_manual)
+
+def build_mbpp_user_prompt(task: MBPPTaskInput) -> str:
+    """Format the user task instructions from the MBPP task input."""
+    return (f"Here the current problem you need to solve: {task.task_definition}\n"
+            f"Expected function signature: {task.function_definition}\n"
+            f"When it's necessary and specified, if not empty, you should import: {task.test_imports}\n"
+            f"Test assertions you must validate: {task.test_list}")
+
+FAKE_SANDBOX_MANUAL_SWE = '''
+- read_file(filepath, start_line, end_line) # Read the content of a file with line numbers.
+- edit_file(filepath, old_str, new_str) # Replace an exact string in a file with a new string
+- list_files(directory, pattern) # List files in a directory matching a given pattern.
+- search_code(pattern, file_pattern) # Perform a grep-like search in the codebase
+- search_function_or_class_definition_in_code(name) # Find the definition of a function or a class.
+- find_references(name, filepath, line) # Find all usages of a symbol (function or class).
+- run_tests() # Execute the evaluation script.
+- run_command(command, workdir) # Execute a shell command in the specified working directory.
+- get_patch() # Retrieve the unified git diff of all changes made to the repository, depending on the implementation.
+'''
 
 PROMPT_SWE = ""

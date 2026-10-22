@@ -7,7 +7,7 @@ from .key_manager import KeyManager
 from .exception import KeyQuotaError, ServerError, FatalError
 from .models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from .models.output_data_models import SolutionOutput
-from .prompts import PROMPT_MBPP, PROMPT_SWE
+from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
 
 
 class Orchestrator:
@@ -32,6 +32,7 @@ class Orchestrator:
         self.context = ...
         self.sandbox = ...  # Anatole ici
         self.sys_prompt = ""
+        self.user_prompt = ""
         # self.answer = self.query_llm()  # pour le test seulement
 
     def load_provider(self, url: str) -> str:
@@ -127,13 +128,21 @@ class Orchestrator:
                       task: MBPPTaskInput | SWEBenchTaskInput
                       ) -> SolutionOutput:
         """Execute the agentic loop to solve the task and return solution."""
-        if task == MBPPTaskInput:
-            self.sys_prompt = PROMPT_MBPP
+        if isinstance(task, MBPPTaskInput):
+            # Attention il faudra mettre le manual en arg, la c par defaut
+            self.sys_prompt = build_mbpp_sys_prompt()
+            self.user_prompt = build_mbpp_user_prompt(task)
         else:
-            self.sys_prompt = PROMPT_SWE
+            # A implémenter pour SWE
+            self.sys_prompt = ""
 
-        messages =  []
-        
+        messages = [
+            {"role": "system", "content": self.sys_prompt},
+            {"role": "user", "content": self.user_prompt}
+        ]
+
+        print(messages)
+
         # prepa le prompt avec la consigne de task "task_definition"
         # lance une boucle while iterations < max_iterations:
         # a chaque tour on applique le pattern ReAct et
