@@ -2,6 +2,7 @@ import os
 import time
 from openai import (OpenAI, APIStatusError,
                     APIConnectionError, APITimeoutError)
+from openai.types.chat import ChatCompletionMessageParam
 
 from .key_manager import KeyManager
 from .exception import KeyQuotaError, ServerError, FatalError
@@ -33,6 +34,7 @@ class Orchestrator:
         self.sandbox = ...  # Anatole ici
         self.sys_prompt = ""
         self.user_prompt = ""
+        self.messages: list[ChatCompletionMessageParam] = []
         # self.answer = self.query_llm()  # pour le test seulement
 
     def load_provider(self, url: str) -> str:
@@ -46,7 +48,7 @@ class Orchestrator:
                 return key
         raise ValueError("Provider not handled")
 
-    def call_api(self, prompt: str) -> str:
+    def call_api(self) -> str:
         """Send a prompt to the LLM and map API errors to domain exceptions."""
         try:
             with OpenAI(
@@ -55,9 +57,7 @@ class Orchestrator:
             ) as client:
                 response = client.chat.completions.create(
                     model=self.model,
-                    messages=[
-                        {"role": "user", "content": prompt}
-                    ],
+                    messages=self.messages,
                 )
                 return str(response.choices[0].message.content)
 
@@ -86,17 +86,12 @@ class Orchestrator:
         self.step_output_tokens = 0
         self.step_time = 0
 
-        prompt = ("Ceci est juste un test, si tu reçois ce message, "
-                  "répond specifiquement sous cette forme : "
-                  "Je suis : <nom_du_modele>, je viens de "
-                  "<nom_de_ton_fournisseur> et j'apprécie le caca.")
-
         max_server_retries = 3
         server_retries = 0
 
         while True:
             try:
-                content = self.call_api(prompt)
+                content = self.call_api()
                 # In case there's a minute-rate limit on key
                 self.key_manager.reset_attempt()
                 return content
@@ -136,15 +131,21 @@ class Orchestrator:
             # A implémenter pour SWE
             self.sys_prompt = ""
 
-        messages = [
+        self.messages = [
             {"role": "system", "content": self.sys_prompt},
             {"role": "user", "content": self.user_prompt}
         ]
 
-        print(messages)
+        # test de fonctionnement:
+        res = self.query_llm()
+        print(res)
 
-        # prepa le prompt avec la consigne de task "task_definition"
         # lance une boucle while iterations < max_iterations:
+            # on va faire self.messages.append({"role": "assistant", "content": res})
+            # on extrait le code et on l'envoie a la sanbox
+            # on recoit la rep de la sandbox : self.messages.append({"role": "user", "content": f"Observation:\n{sandbox_output}"}).
+            # resumer l'historique ??? a laide
+            # Au tour suivant, call_api() renvoie automatiquement tout l'historique mis à jour
         # a chaque tour on applique le pattern ReAct et
         # on fait un objet StepMetrics
         # on renvoie l'objet SolutionOutput validé et tada
