@@ -13,6 +13,7 @@ dependencies = [
     "flake8",
     "mypy",
     "pydantic",
+    "mcp[cli]<2",
 ]
 
 [tool.uv]
