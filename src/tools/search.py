@@ -1,4 +1,4 @@
-from src.tools.path_utils import get_testbed_root
+from src.tools.path_utils import get_testbed_root, resolve_testbed_path
 from pathlib import Path
 import re
 import ast
@@ -74,3 +74,46 @@ def search_function_or_class_definition_in_code(name: str) -> str:
         return f"No definition found for '{name}'."
 
     return ("\n".join(r for r in result))
+
+
+def find_references(name: str, filepath: str = "", line: int = -1) -> str:
+    max_match = 100
+
+    if not name or not name.strip():
+        return "Error: name cannot be empty."
+
+    if filepath:
+        path = resolve_testbed_path(filepath)
+        if not path or not path.is_file():
+            return f"Error: {path} is not a file or do not exist"
+        files = [path]
+    else:
+        files = get_clean_files(get_testbed_root(), "*.py")
+
+    pattern = r"\b" + re.escape(name) + r"\b"
+    regex = re.compile(pattern)
+    result = []
+    for file in files:
+        try:
+            content = file.read_text(encoding="utf-8", errors="replace")
+            if name not in content:
+                continue  # Skip the files if the word isn't in the file
+        except PermissionError:
+            continue
+
+        lines = content.splitlines()
+        for line_num, line_content in enumerate(lines, start=1):
+            if filepath and line_num == line:
+                continue
+            if regex.search(line_content):
+                result.append(f"{file.resolve()}:{line_num} {line_content}")
+
+    if not result:
+        return f"No references found for '{name}'."
+    warn_msg = ""
+    if len(result) > max_match:
+        result = result[:max_match]
+        warn_msg = (f"\n... [Truncated: showing first {max_match} matches. "
+                    "Please refine your search pattern.]")
+
+    return ("\n".join(r for r in result) + warn_msg)
