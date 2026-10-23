@@ -97,7 +97,7 @@ def find_references(name: str, filepath: str = "", line: int = -1) -> str:
         try:
             content = file.read_text(encoding="utf-8", errors="replace")
             if name not in content:
-                continue  # Skip the files if the word isn't in the file
+                continue
         except PermissionError:
             continue
 
