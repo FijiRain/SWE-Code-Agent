@@ -4,16 +4,21 @@ from .restricted_sandbox import (
     build_builtins, apply_memory_restricted,
     truncke_output, restricted_conn
     )
+from .McpBrige import McpBridge
+from .McpClient import ToolSpec
 
 from typing import Dict, List
 from contextlib import redirect_stdout
-import multiprocessing as mp
 from multiprocessing.connection import Connection
+from pydantic import BaseModel, Field
+import multiprocessing as mp
 import time
 import signal
+import concurrent.futures
 
 
 STARTUP_TIMEOUT = 10
+DEFAULT_MCP_SERV = "test/mcp_server_test.py"
 
 
 class PipeWriter:
@@ -36,7 +41,25 @@ class PipeWriter:
         pass
 
 
-def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
+class WorkerToolMessageOutput(BaseModel):
+    name: str = Field(default="", description="name of tool")
+    args: Dict[str, ToolSpec] = Field(
+        default_factory=dict,
+        description="argument for tool"
+    )
+
+
+class WorkerToolMessageIntput(BaseModel):
+    error: bool = Field(default=False, description="If error ar occured")
+    output: str = Field(default="", description="output of calling tool")
+
+
+
+def code_worker_loop(
+        conn: Connection,
+        config: SandboxConfig,
+        tools: Dict[str, ToolSpec]
+        ) -> None:
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     apply_memory_restricted(config.max_memory_mb)
     restricted_conn()
@@ -95,19 +118,38 @@ def code_worker_loop(conn: Connection, config: SandboxConfig) -> None:
 class Sandbox:
     """Execute LLM generated code in a restricted environement"""
     def __init__(self,
-                 sandbox_config: SandboxConfig | None = None) -> None:
+                 sandbox_config: SandboxConfig | None = None,
+                 mcp_command=None) -> None:
         """Init sandbox"""
         self.__config = sandbox_config or SandboxConfig()
 
         self._start_work_process()
+        commande = mcp_command
+        if commande is None:
+            commande = DEFAULT_MCP_SERV
+        self._mcp_bridge = McpBridge(commande)
+        try:
+            self._mcp_bridge.connect()
+        except BaseException:
+            self.close()
+            raise RuntimeError("Failed bridge connet to MCP server")
+        self._tools_list: Dict[str, ToolSpec] = (
+            self._mcp_bridge.get_tools_list()
+        )
 
     def _start_work_process(self) -> None:
         """Init the launche of work process to execut code"""
         ctx = mp.get_context("spawn")
         self._conn, child_con = ctx.Pipe()
-        self._process = ctx.Process(target=code_worker_loop,
-                                    args=(child_con, self.__config),
-                                    daemon=True)
+        self._process = ctx.Process(
+            target=code_worker_loop,
+            args=(
+                child_con,
+                self.__config,
+                self._tools_list
+            ),
+            daemon=True
+        )
         self._process.start()
         child_con.close()
         if not self._conn.poll(STARTUP_TIMEOUT):
@@ -144,6 +186,22 @@ class Sandbox:
                 state, payload = self._conn.recv()
                 if state == "stdout":
                     chunks.append(payload)
+                elif state == "tool_call":
+                    start_time_tool = time.monotonic()
+                    message_intput = WorkerToolMessageIntput()
+                    try:
+                        message_intput.output = self._mcp_bridge.call_tool(
+                            payload.name,
+                            payload.args
+                        )
+                    except (Exception, concurrent.futures.TimeoutError) as e:
+                        message_intput.error = True
+                        message_intput.output = (
+                            f"{type(e).__name__}: {e}"
+                        )
+                    self._conn.send(("tool_result", message_intput))
+                    deadline += start_time_tool + time.monotonic()
+
                 else:
                     output = "".join(chunks)
                     output, is_truncate = truncke_output(

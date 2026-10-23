@@ -26,31 +26,37 @@
 
 # asyncio.run(mcp_clien())
 
-from .sandbox.McpClient import McpClient, McpToolError, McpConnectionError
-import asyncio
+# from .sandbox.McpClient import McpClient, McpToolError, McpConnectionError
+# import asyncio
 
 
-async def test_client():
-    client = McpClient("python test/mcp_server_test.py")
-    try:
-        await client.connect()
-    except McpConnectionError as e:
-        print(f"Connection failed: {e}")
-        return
-    try:
-        print(await client.get_mcp_tool())
-        print(await client.call_tool("slow", {"seconds": 15}))
-        print(await client.call_tool("add", {"a": 1, "b": 1}))
-        print(await client.call_tool("fail", {}))
+# async def test_client():
+#     client = McpClient("python test/mcp_server_test.py")
+#     try:
+#         await client.connect()
+#     except McpConnectionError as e:
+#         print(f"Connection failed: {e}")
+#         return
+#     try:
+#         print(type(await client.get_mcp_tool()))
+#         # print(await client.call_tool("slow", {"seconds": 15}))
+#         # print(await client.call_tool("add", {"a": 1, "b": 1}))
+#         # print(await client.call_tool("fail", {}))
 
-    except McpToolError as e:
-        print(e)
-    finally:
-        await client.close()
+#     except McpToolError as e:
+#         print(e)
+#     finally:
+#         await client.close()
+
+from .sandbox.McpBrige import McpBridge
 
 
 def main():
-    asyncio.run(test_client())
+    bridge = McpBridge("python test/mcp_server_test.py")
+    bridge.connect()
+    print(bridge.call_tool("add", {'a': 1, 'b': 1}))
+    bridge.close()
+    # asyncio.run(test_client())
 
 
 if __name__ == "__main__":
