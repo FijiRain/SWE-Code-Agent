@@ -21,23 +21,19 @@ class Orchestrator:
         self.provider = self.load_provider(provider_url)
         self.key_manager = KeyManager(self.provider)
 
-        self.step_retries = 0
-        self.step_input_tokens = 0
-        self.step_output_tokens = 0
-        self.step_time = 0.0
-        self.self_list = []
-
         self.total_retries = 0
         self.total_time = 0
         self.max_iterations = 0
 
-        self.context = ...
         self.sandbox = ...  # Anatole ici
         self.sys_prompt = ""
         self.user_prompt = ""
-        self.messages: list[ChatCompletionMessageParam] = []
-        # self.answer = self.query_llm()  # pour le test seulement
+        self.context: list[ChatCompletionMessageParam] = []
 
+        self.step_retries = 0
+        self.step_input_tokens = 0
+        self.step_output_tokens = 0
+        self.step_time = 0.0
         self.all_steps: list[StepMetrics] = []
 
     def load_provider(self, url: str) -> str:
@@ -58,10 +54,17 @@ class Orchestrator:
                 base_url=self.provider_url,
                 api_key=self.key_manager.get_key()
             ) as client:
+                start_time = time.perf_counter()
                 response = client.chat.completions.create(
                     model=self.model,
-                    messages=self.messages,
+                    messages=self.context
                 )
+                end_time = time.perf_counter()
+                self.step_time = (end_time - start_time) * 1000
+                if response.usage:
+                    self.step_input_tokens = response.usage.prompt_tokens
+                    self.step_output_tokens = response.usage.completion_tokens
+
                 return str(response.choices[0].message.content)
 
         except APIStatusError as e:
@@ -137,31 +140,26 @@ class Orchestrator:
             self.user_prompt = ""
             self.max_iterations = 30
 
-        self.messages = [
-            {"role": "system", "content": self.sys_prompt},
-            {"role": "user", "content": self.user_prompt}
-        ]
+        self.context = [{"role": "system", "content": self.sys_prompt},
+                        {"role": "user", "content": self.user_prompt}]
 
-        # max iteration 10
-        # max input tokens 6000, input prompt d'environ 540 tokens
-        # max output tokens 1500 
-        # time out 120s
-        current_iterations = 0
+        current_iterations = 0  # max iteration 10
+        total_input_token = 0 # max 6000, input prompt ≈ 540 tokens
+        total_output_token = 0  # max 1500
+        total_task_time = 0  # time-out 120s
         solved = False
-        while current_iterations <= self.max_iterations:
+        while current_iterations < self.max_iterations and not solved:
             current_iterations += 1
             res = self.query_llm()
-
-            self.messages.append({"role": "assistant", "content": res})
+            self.context.append({"role": "assistant", "content": res})
             # on extrait le code et on l'envoie a la sanbox
-            # on recoit la rep de la sandbox : self.messages.append({"role": "user", "content": f"Observation:\n{sandbox_output}"}).
+            # on recoit la rep de la sandbox : self.context.append({"role": "user", "content": f"Observation:\n{sandbox_output}"}).
             # resumer l'historique ??? a laide
-            # Au tour suivant, call_api() renvoie automatiquement tout l'historique mis à jour
             step = StepMetrics(
                 step=current_iterations,
-                input_tokens=...,
-                output_tokens=...,
-                request_time_ms=...,
+                input_tokens=self.step_input_tokens,
+                output_tokens=self.step_output_tokens,
+                request_time_ms=self.step_time,
                 api_url=self.provider_url,
                 model_name=self.model,
                 llm_output=res,
@@ -169,5 +167,9 @@ class Orchestrator:
                 sandbox_output="NON DISPONIBLE",
                 retries=self.step_retries
             )
+            self.all_steps.append(step)
+            if solved:
+                break
+            # Au tour suivant, call_api() renvoie automatiquement tout l'historique mis à jour
         # on renvoie l'objet SolutionOutput validé et tada
         ...
