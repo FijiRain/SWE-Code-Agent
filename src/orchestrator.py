@@ -7,7 +7,7 @@ from openai.types.chat import ChatCompletionMessageParam
 from .key_manager import KeyManager
 from .exception import KeyQuotaError, ServerError, FatalError
 from .models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
-from .models.output_data_models import SolutionOutput
+from .models.output_data_models import SolutionOutput, StepMetrics
 from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
 
 
@@ -29,6 +29,7 @@ class Orchestrator:
 
         self.total_retries = 0
         self.total_time = 0
+        self.max_iterations = 0
 
         self.context = ...
         self.sandbox = ...  # Anatole ici
@@ -36,6 +37,8 @@ class Orchestrator:
         self.user_prompt = ""
         self.messages: list[ChatCompletionMessageParam] = []
         # self.answer = self.query_llm()  # pour le test seulement
+
+        self.all_steps: list[StepMetrics] = []
 
     def load_provider(self, url: str) -> str:
         """Identify the matching provider environment variable from the URL."""
@@ -127,26 +130,44 @@ class Orchestrator:
             # Attention il faudra mettre le manual en arg, la c par defaut
             self.sys_prompt = build_mbpp_sys_prompt()
             self.user_prompt = build_mbpp_user_prompt(task)
+            self.max_iterations = 10
         else:
-            # A implémenter pour SWE
+            # A implémenter pour SWE, str vide pour Pylance
             self.sys_prompt = ""
+            self.user_prompt = ""
+            self.max_iterations = 30
 
         self.messages = [
             {"role": "system", "content": self.sys_prompt},
             {"role": "user", "content": self.user_prompt}
         ]
 
-        # test de fonctionnement:
-        res = self.query_llm()
-        print(res)
+        # max iteration 10
+        # max input tokens 6000, input prompt d'environ 540 tokens
+        # max output tokens 1500 
+        # time out 120s
+        current_iterations = 0
+        solved = False
+        while current_iterations <= self.max_iterations:
+            current_iterations += 1
+            res = self.query_llm()
 
-        # lance une boucle while iterations < max_iterations:
-            # on va faire self.messages.append({"role": "assistant", "content": res})
+            self.messages.append({"role": "assistant", "content": res})
             # on extrait le code et on l'envoie a la sanbox
             # on recoit la rep de la sandbox : self.messages.append({"role": "user", "content": f"Observation:\n{sandbox_output}"}).
             # resumer l'historique ??? a laide
             # Au tour suivant, call_api() renvoie automatiquement tout l'historique mis à jour
-        # a chaque tour on applique le pattern ReAct et
-        # on fait un objet StepMetrics
+            step = StepMetrics(
+                step=current_iterations,
+                input_tokens=...,
+                output_tokens=...,
+                request_time_ms=...,
+                api_url=self.provider_url,
+                model_name=self.model,
+                llm_output=res,
+                sandbox_input="NON DISPONIBLE",
+                sandbox_output="NON DISPONIBLE",
+                retries=self.step_retries
+            )
         # on renvoie l'objet SolutionOutput validé et tada
         ...

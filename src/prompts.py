@@ -64,14 +64,14 @@ final_answer('''def is_even(n):
 """
 
 def build_mbpp_sys_prompt(sandbox_manual: str = FAKE_SANDBOX_MANUAL_MBPP) -> str:
-    """Return the MBPP system prompt filled with the sandbox manual.""" 
+    """Return the MBPP system prompt filled with the sandbox manual."""
     return PROMPT_MBPP.format(sandbox_manual=sandbox_manual)
 
 def build_mbpp_user_prompt(task: MBPPTaskInput) -> str:
     """Format the user task instructions from the MBPP task input."""
     return (f"Here the current problem you need to solve: {task.task_definition}\n"
             f"Expected function signature: {task.function_definition}\n"
-            f"When it's necessary and specified, if not empty, you should import: {task.test_imports}\n"
+            f"When it's necessary and specified, if not empty, you must import: {task.test_imports}\n"
             f"Test assertions you must validate: {task.test_list}")
 
 FAKE_SANDBOX_MANUAL_SWE = '''
