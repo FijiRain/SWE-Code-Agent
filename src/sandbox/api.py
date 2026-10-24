@@ -6,11 +6,14 @@ from .restricted_sandbox import (
     )
 from .McpBrige import McpBridge
 from .McpClient import ToolSpec
+from .wrapper_tools import (
+    WorkerToolMessageIntput,
+    make_tools_wrapper
+)
 
 from typing import Dict, List
 from contextlib import redirect_stdout
 from multiprocessing.connection import Connection
-from pydantic import BaseModel, Field
 import multiprocessing as mp
 import time
 import signal
@@ -39,20 +42,6 @@ class PipeWriter:
     def flush(self) -> None:
         """ obligatory function"""
         pass
-
-
-class WorkerToolMessageOutput(BaseModel):
-    name: str = Field(default="", description="name of tool")
-    args: Dict[str, ToolSpec] = Field(
-        default_factory=dict,
-        description="argument for tool"
-    )
-
-
-class WorkerToolMessageIntput(BaseModel):
-    error: bool = Field(default=False, description="If error ar occured")
-    output: str = Field(default="", description="output of calling tool")
-
 
 
 def code_worker_loop(
