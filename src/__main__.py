@@ -67,61 +67,76 @@
 #     # asyncio.run(test_client())
 
 
+from .sandbox.api import Sandbox
+from .sandbox.SandboxConfig import load_config
 
 
-# if __name__ == "__main__":
-    # main()
+def main():
+    sand = Sandbox(load_config("sandbox_template.json"),
+                   "python test/mcp_server_test.py")
+    r = sand.execute("print(add(1, 1))")
+    print(f"STDOUT = {r.stdout}")
+    print(f"ERROR = {r.error}")
+    print()
+    r = sand.execute("print(dir())")
+    print(f"STDOUT = {r.stdout}")
+    print(f"ERROR = {r.error}")
+    sand.close()
+
+
+if __name__ == "__main__":
+    main()
     # asyncio.run(test_client())
 
 
-from .sandbox.McpClient import ToolSpec
-from .sandbox.wrapper_tools import WorkerToolMessageIntput, make_tools_wrapper
+# from .sandbox.McpClient import ToolSpec
+# from .sandbox.wrapper_tools import WorkerToolMessageIntput, make_tools_wrapper
 
-spec = ToolSpec(name="add", input_schema={
-    "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}},
-    "required": ["a", "b"],
-})
-
-
-class FakeConn:
-    def send(self, msg):
-        print("sent:", msg)
-
-    def recv(self):
-        return ("tool_result", WorkerToolMessageIntput(output="2"))
+# spec = ToolSpec(name="add", input_schema={
+#     "properties": {"a": {"type": "integer"}, "b": {"type": "integer"}},
+#     "required": ["a", "b"],
+# })
 
 
-add = make_tools_wrapper(spec, FakeConn())
-print(add(1, 1))      # "sent: ..." then 2
-print(add(a=1, b=1))  # same
+# class FakeConn:
+#     def send(self, msg):
+#         print("sent:", msg)
 
-print("****************************")
-print("missing b")
-try:
-    add(1)
-except TypeError as e:
-    print(e)            # error: missing b
-print()
-print("error: too many arguments")
-try:
-    add(1, 2, 3)       # error: too many arguments
-except TypeError as e:
-    print(e)
-print()
-print("error: multiple values for 'a'")
-try:
-    add(1, a=1)       # error: multiple values for 'a'
-except TypeError as e:
-    print(e)
-print()
-print("error: b must be integer")
-try:
-    add(1, "2")       # error: b must be integer
-except TypeError as e:
-    print(e)
-print()
-print("error: invalid argument")
-try:
-    add(c=1)      # error: invalid argument
-except TypeError as e:
-    print(e)
+#     def recv(self):
+#         return ("tool_result", WorkerToolMessageIntput(output="2"))
+
+
+# add = make_tools_wrapper(spec, FakeConn())
+# print(add(1, 1))      # "sent: ..." then 2
+# print(add(a=1, b=1))  # same
+
+# print("****************************")
+# print("missing b")
+# try:
+#     add(1)
+# except TypeError as e:
+#     print(e)            # error: missing b
+# print()
+# print("error: too many arguments")
+# try:
+#     add(1, 2, 3)       # error: too many arguments
+# except TypeError as e:
+#     print(e)
+# print()
+# print("error: multiple values for 'a'")
+# try:
+#     add(1, a=1)       # error: multiple values for 'a'
+# except TypeError as e:
+#     print(e)
+# print()
+# print("error: b must be integer")
+# try:
+#     add(1, "2")       # error: b must be integer
+# except TypeError as e:
+#     print(e)
+# print()
+# print("error: invalid argument")
+# try:
+#     add(c=1)      # error: invalid argument
+# except TypeError as e:
+#     print(e)

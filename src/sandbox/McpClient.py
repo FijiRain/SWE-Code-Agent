@@ -49,8 +49,8 @@ class McpClient:
             self._session = await self._stack.enter_async_context(
                 ClientSession(read, write)
                 )
-            asyncio.wait_for(
-                await self._session.initialize(),
+            await asyncio.wait_for(
+                self._session.initialize(),
                 timeout=10
             )
         except Exception as e:

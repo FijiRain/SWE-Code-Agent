@@ -18,10 +18,10 @@ import multiprocessing as mp
 import time
 import signal
 import concurrent.futures
+import keyword
 
 
 STARTUP_TIMEOUT = 10
-DEFAULT_MCP_SERV = "test/mcp_server_test.py"
 
 
 class PipeWriter:
@@ -56,6 +56,11 @@ def code_worker_loop(
         "__builtins__": build_builtins(config),
         "__name__": config.sandbox_name,
     }
+
+    for spec in tools.values():
+        if not spec.name.isidentifier() or keyword.iskeyword(spec.name):
+            continue
+        namespace[spec.name] = make_tools_wrapper(spec, conn)
 
     state_final_answer: Dict = {}
     state_final_answer["answer"] = None
@@ -108,23 +113,26 @@ class Sandbox:
     """Execute LLM generated code in a restricted environement"""
     def __init__(self,
                  sandbox_config: SandboxConfig | None = None,
-                 mcp_command=None) -> None:
+                 mcp_command: str | None = None) -> None:
         """Init sandbox"""
         self.__config = sandbox_config or SandboxConfig()
+        self._mcp_bridge: McpBridge | None = None
+        self._tools_list: Dict[str, ToolSpec] = {}
 
-        self._start_work_process()
-        commande = mcp_command
-        if commande is None:
-            commande = DEFAULT_MCP_SERV
-        self._mcp_bridge = McpBridge(commande)
-        try:
-            self._mcp_bridge.connect()
-        except BaseException:
-            self.close()
-            raise RuntimeError("Failed bridge connet to MCP server")
-        self._tools_list: Dict[str, ToolSpec] = (
-            self._mcp_bridge.get_tools_list()
-        )
+        if mcp_command is not None:
+            self._mcp_bridge = McpBridge(mcp_command)
+            try:
+                self._mcp_bridge.connect()
+                self._tools_list = self._mcp_bridge.get_tools_list()
+            except BaseException:
+                self._mcp_bridge.close()
+                raise
+            try:
+                self._start_work_process()
+            except BaseException:
+                if self._mcp_bridge is not None:
+                    self._mcp_bridge.close
+                raise
 
     def _start_work_process(self) -> None:
         """Init the launche of work process to execut code"""
@@ -157,7 +165,7 @@ class Sandbox:
             )
 
     def _restart_work_process(self) -> None:
-        self.close()
+        self._stop_worker()
         self._start_work_process()
 
     def execute(self, code: str) -> ExecutionResult:
@@ -165,6 +173,7 @@ class Sandbox:
         timed_out = False
         chunks: List[str] = []
         deadline = time.monotonic() + self.__config.max_execution_time_seconds
+        tool_truncated = False
         try:
             self._conn.send(code)
             while True:
@@ -183,13 +192,18 @@ class Sandbox:
                             payload.name,
                             payload.args
                         )
+                        message_intput.output, cut = truncke_output(
+                            message_intput.output,
+                            self.__config.max_len_tool_output
+                        )
+                        tool_truncated = tool_truncated or cut
                     except (Exception, concurrent.futures.TimeoutError) as e:
                         message_intput.error = True
                         message_intput.output = (
                             f"{type(e).__name__}: {e}"
                         )
                     self._conn.send(("tool_result", message_intput))
-                    deadline += start_time_tool + time.monotonic()
+                    deadline += time.monotonic() - start_time_tool
 
                 else:
                     output = "".join(chunks)
@@ -197,7 +211,7 @@ class Sandbox:
                         output, self.__config.max_len_output
                     )
                     payload.stdout = output
-                    payload.truncated = is_truncate
+                    payload.truncated = is_truncate or tool_truncated
                     return payload
 
         except (EOFError, OSError):
@@ -223,7 +237,7 @@ class Sandbox:
                         "are lost, you must redefine them. "
                     ),
                 timed_out=True,
-                truncated=is_truncate
+                truncated=is_truncate or tool_truncated
                     )
         return ExecutionResult(
                 stdout=output,
@@ -240,7 +254,7 @@ class Sandbox:
         """Return the sandbox manual"""
         ...
 
-    def close(self) -> None:
+    def _stop_worker(self) -> None:
         """Kill the running process"""
         try:
             self._conn.send(None)
@@ -251,3 +265,8 @@ class Sandbox:
             self._process.kill()
             self._process.join()
         self._conn.close()
+
+    def close(self) -> None:
+        self._stop_worker()
+        if self._mcp_bridge is not None:
+            self._mcp_bridge.close()
