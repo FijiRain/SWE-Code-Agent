@@ -58,7 +58,7 @@ def verif_params(
         ) -> Dict:
     if (len(kwargs) + len(args) > len(names)):
         raise TypeError(
-            "Error: Too many arguments: "
+            "Too many arguments: "
             f"{signature(spec)}"
         )
     result = {}
@@ -67,30 +67,43 @@ def verif_params(
             result[names[idx]] = arg
         else:
             raise TypeError(
-                f"Error: {names[idx]} must be "
+                f"{names[idx]} must be "
                 f"{spec.input_schema['properties'][names[idx]]['type']}"
             )
 
     for name, arg in kwargs.items():
         if name in result:
-            raise TypeError(f"Error: {signature(spec)} "
+            raise TypeError(f"{signature(spec)} "
                             f"got multiple values for '{name}'")
         if name not in names:
             raise TypeError(
-                f"Error: Invalid argument: {name}"
+                f"Invalid argument: {name}"
             )
         if check_type(arg, spec.input_schema["properties"][name]):
             result[name] = arg
         else:
             raise TypeError(
-                f"Error: {name} must be "
+                f"{name} must be "
                 f"{spec.input_schema['properties'][name]['type']}"
             )
+    missing_arg = []
     for name in required:
         if name not in result.keys():
-            raise TypeError(
-                f"Error: missing required argument: {name}"
+            missing_arg.append(name)
+    if missing_arg:
+        quoted_args = [f"'{arg}'" for arg in missing_arg]
+        string_error = (
+            f"missing {len(missing_arg)} required positional "
+            f"argument: {', '.join(quoted_args[:-1])} and "
+            f"{quoted_args[-1]}"
+        )
+        if len(missing_arg) <= 1:
+            string_error = (
+                f"missing {len(missing_arg)} required positional "
+                f"argument: '{''.join(missing_arg)}'"
             )
+        raise TypeError(string_error)
+
     return result
 
 
@@ -108,7 +121,7 @@ def make_tools_wrapper(spec: ToolSpec, conn: Connection) -> Callable[..., Any]:
         kind, response = conn.recv()
         if kind != "tool_result" or not isinstance(
                                         response, WorkerToolMessageIntput):
-            raise RuntimeError("Error: Unexpected message from the sandbox: "
+            raise RuntimeError("Unexpected message from the sandbox: "
                                f"{kind!r}")
         if response.error:
             raise McpToolError(response.output)

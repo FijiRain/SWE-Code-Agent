@@ -1,12 +1,14 @@
 """Mini MCP server, only to test the sandbox client.
 
-It is NOT the real server of the project (mcp_tools_mbpp.py / mcp_tools_swebench.py).
+It is NOT the real server of the project
+(mcp_tools_mbpp.py /mcp_tools_swebench.py).
 It exposes a few tools with different kinds of parameters and results, one
 resource and one prompt.
 
 Run it:
     python mini_mcp_server.py          # stdio (the client launches it)
-    python mini_mcp_server.py http     # streamable HTTP (default: http://127.0.0.1:8000/mcp)
+    python mini_mcp_server.py http
+    # streamable HTTP (default: http://127.0.0.1:8000/mcp)
 
 Warning: with stdio, never print() to stdout in this file, it would corrupt
 the protocol. Use stderr if you need to debug.
@@ -24,6 +26,12 @@ mcp = FastMCP("mini-test-server")
 def add(a: int, b: int) -> int:
     """Add two integers."""
     return a + b
+
+
+@mcp.tool()
+def add_tree_nb(a: int, b: int, c: int) -> int:
+    """Add tree integers."""
+    return a + b + c
 
 
 @mcp.tool()

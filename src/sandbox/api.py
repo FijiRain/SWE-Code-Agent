@@ -112,8 +112,9 @@ def code_worker_loop(
 class Sandbox:
     """Execute LLM generated code in a restricted environement"""
     def __init__(self,
+                 mcp_command: str,
                  sandbox_config: SandboxConfig | None = None,
-                 mcp_command: str | None = None) -> None:
+                 ) -> None:
         """Init sandbox"""
         self.__config = sandbox_config or SandboxConfig()
         self._mcp_bridge: McpBridge | None = None
