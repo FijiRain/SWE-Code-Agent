@@ -1,3 +1,4 @@
+import os
 from dotenv import load_dotenv
 from pydantic import ValidationError
 from src.models.input_data_models import MBPPTaskInput
@@ -19,29 +20,15 @@ def run_MBPP(task_file: str, output: str,
             f"Invalid MBPP task config in '{task_file}':\n{e}") from e
 
     orchestrator = Orchestrator(model_name, provider_url)
-    # print(orchestrator.answer)  # c'est un test
 
     res = orchestrator.complete_task(task)
-    print(res)
-    # A la fin ouvrir le fichier au chemin output et faire
-    # un model_dump_json() pour ecrire res dans un fichier solution.json
+    if os.path.dirname(output):
+        os.makedirs(os.path.dirname(output), exist_ok=True)
+    with open(output, "w") as f:
+        f.write(res.model_dump_json(indent=2))
 
 
 def run_SWE():
     """Load a SWE-bench task, run the orchestrator, and write the patch."""
     # TODO
     ...
-
-
-# uv run python -m agent_mbpp
-# --task-file ../cache/mbpp_task.json
-# --output ../cache/mbpp_solution.json
-# --model-name "model/name"
-# --provider-url "https://provider.api/v1"
-
-# pour test
-# uv run python -m agent_mbpp
-# --task-file test_mbpp_task.json
-# --output ../cache/mbpp_solution.json
-# --model-name "openrouter/free"
-# --provider-url "https://openrouter.ai/api/v1"
