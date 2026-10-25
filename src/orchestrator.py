@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from typing import Optional
 
 from .key_manager import KeyManager
-from .exception import KeyQuotaError, ServerError, FatalError
+from .exception import (KeyQuotaError, ServerError,
+                        FatalError, ProviderRequestError)
 from .models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from .models.output_data_models import SolutionOutput, StepMetrics
 from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
@@ -146,20 +147,24 @@ class Orchestrator:
         if isinstance(task, MBPPTaskInput):
             limits = MBPP_LIMITS
             benchmark_type = "mbpp"
-            id = str(task.task_id)
+            id_bench = str(task.task_id)
         else:
             limits = SWE_LIMITS
             benchmark_type = "swebench"
-            id = str(task.instance_id) # verif si ca marche avec le Field()
+            id_bench = str(task.instance_id)
 
         solved = False
         start_time = time.time()
         current_iterations = 0
         solution = ""
         error = None
-        while current_iterations < self.max_iterations and not solved:
+        while current_iterations < limits.max_iterations and not solved:
             current_iterations += 1
-            res = self.query_llm()
+            try:
+                res = self.query_llm()
+            except ProviderRequestError as e:
+                error = str(e)
+                break
             self.context.append({"role": "assistant", "content": res})
             # on extrait le code et on l'envoie a la sanbox
             # on recoit la rep de la sandbox : self.context.append({"role": "user", "content": f"Observation:\n{sandbox_output}"}).
@@ -193,7 +198,7 @@ class Orchestrator:
                 break
             # Au tour suivant, call_api() renvoie automatiquement tout l'historique mis à jour
         total_time = time.time() - start_time
-        return SolutionOutput(task_id=id,
+        return SolutionOutput(task_id=id_bench,
                               benchmark=benchmark_type,
                               success=solved,
                               solution=solution,
@@ -215,12 +220,10 @@ class Orchestrator:
             # Attention il faudra mettre le manual en arg du sys prompt, la c par defaut
             self.sys_prompt = build_mbpp_sys_prompt()
             self.user_prompt = build_mbpp_user_prompt(task)
-            self.max_iterations = 10
         else:
             # A implémenter pour SWE, str vide pour Pylance
             self.sys_prompt = ""
             self.user_prompt = ""
-            self.max_iterations = 30
 
         self.context = [{"role": "system", "content": self.sys_prompt},
                         {"role": "user", "content": self.user_prompt}]
