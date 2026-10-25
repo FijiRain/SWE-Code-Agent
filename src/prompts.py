@@ -35,7 +35,6 @@ CRITICAL FORMAT RULES:
 3. AVAILABLE TOOLS
 The following functions are pre-loaded in your global namespace. Call them directly as standard Python functions: {sandbox_manual}
 
-
 4. SOLVING WORKFLOW
 - Implement: Write the solution matching the exact function signature and imports requested in the task.
 - Test: Validate your solution using run_tests(code, test_list) before submission.

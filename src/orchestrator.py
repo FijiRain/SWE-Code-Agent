@@ -129,19 +129,8 @@ class Orchestrator:
                       task: MBPPTaskInput | SWEBenchTaskInput
                       ) -> SolutionOutput:
         """Execute the agentic loop to solve the task and return solution."""
-        if isinstance(task, MBPPTaskInput):
-            # Attention il faudra mettre le manual en arg, la c par defaut
-            self.sys_prompt = build_mbpp_sys_prompt()
-            self.user_prompt = build_mbpp_user_prompt(task)
-            self.max_iterations = 10
-        else:
-            # A implémenter pour SWE, str vide pour Pylance
-            self.sys_prompt = ""
-            self.user_prompt = ""
-            self.max_iterations = 30
 
-        self.context = [{"role": "system", "content": self.sys_prompt},
-                        {"role": "user", "content": self.user_prompt}]
+        self.build_context(task)
 
         current_iterations = 0  # max iteration 10
         total_input_token = 0 # max 6000, input prompt ≈ 540 tokens
@@ -172,4 +161,25 @@ class Orchestrator:
                 break
             # Au tour suivant, call_api() renvoie automatiquement tout l'historique mis à jour
         # on renvoie l'objet SolutionOutput validé et tada
+        ...
+
+    def build_context(self, task: MBPPTaskInput | SWEBenchTaskInput) -> None:
+        if isinstance(task, MBPPTaskInput):
+            # Attention il faudra mettre le manual en arg du sys prompt, la c par defaut
+            self.sys_prompt = build_mbpp_sys_prompt()
+            self.user_prompt = build_mbpp_user_prompt(task)
+            self.max_iterations = 10
+        else:
+            # A implémenter pour SWE, str vide pour Pylance
+            self.sys_prompt = ""
+            self.user_prompt = ""
+            self.max_iterations = 30
+
+        self.context = [{"role": "system", "content": self.sys_prompt},
+                        {"role": "user", "content": self.user_prompt}]
+
+
+    def stop_loop(self, input_tok: int,
+                  output_tok: int,
+                  time: int) -> bool:
         ...
