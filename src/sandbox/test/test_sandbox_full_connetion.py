@@ -28,7 +28,7 @@ from ..ExecutionResult import ExecutionResult
 from ..McpClient import McpConnectionError
 from ..SandboxConfig import SandboxConfig, load_config
 
-MCP_COMMAND = "python test/mcp_server_test.py"
+MCP_COMMAND = "python src/sandbox/test/mcp_server_test.py"
 CONFIG_PATH = "sandbox_template.json"
 
 USE_COLOR = sys.stdout.isatty()  # no escape codes when output is redirected

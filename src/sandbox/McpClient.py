@@ -1,10 +1,13 @@
 import shlex
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from typing import Dict
+from typing import Dict, List
 from contextlib import AsyncExitStack
 from pydantic import BaseModel, Field
 import asyncio
+import os
+import sys
+import shutil
 
 
 class ToolSpec(BaseModel):
@@ -30,11 +33,39 @@ class McpConnectionError(Exception):
     """Raised when the MCP server cannot be reached or initialized."""
 
 
+def check_server_command(parts: List[str]) -> None:
+    """Fail early, with a clear message, if the server cannot be started."""
+    program = parts[0]
+    if shutil.which(program) is None:
+        raise McpConnectionError(
+            f"MCP server program not found or not executable: '{program}'"
+        )
+    is_python = (os.path.basename(program).startswith("python")
+                 or program == sys.executable)
+    if not is_python:
+        return
+    for arg in parts[1:]:
+        if arg in ("-c", "-m"):
+            return
+        if arg.startswith("-"):
+            continue
+        if not os.path.isfile(arg):
+            raise McpConnectionError(
+                f"MCP server script not found: '{arg}' "
+                f"(looked in {os.getcwd()})"
+            )
+        return
+
+
 class McpClient:
     def __init__(self, command: str):
-        parts = shlex.split(command)
+        try:
+            parts = shlex.split(command)
+        except ValueError as e:
+            raise McpConnectionError(f"Invalid MCP server command: {e}") from e
         if not parts:
             raise ValueError("Empty MCP Server command")
+        check_server_command(parts)
         self._params = StdioServerParameters(
             command=parts[0],
             args=parts[1:]
