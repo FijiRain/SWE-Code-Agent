@@ -1,13 +1,15 @@
+"""Configuration of the sandbox and its JSON loader."""
 from pydantic import BaseModel, Field, ValidationError
 from typing import List
 from pathlib import Path
 
 
 class SandboxConfig(BaseModel):
-    """Sandbox configuration for student solutions.
-        Uses allowlist approach: only imports in authorized_imports
-        are allowed.
-        Everything else is blocked by default.
+    """Configuration of the sandbox.
+
+    Uses an allowlist approach: only the imports, builtins and directories
+    listed here are available, everything else is blocked. It also sets
+    the time, memory and output size limits.
     """
     authorized_imports: List[str] = Field(
         default_factory=lambda: [
@@ -76,7 +78,15 @@ class SandboxConfig(BaseModel):
 
 
 def load_config(path_sandbox_config: str):
-    """Load sandbox config from json file"""
+    """Load the sandbox configuration from a JSON file.
+
+    Args:
+        path_sandbox_config: Path of the JSON file.
+
+    Raises:
+        ValueError: If the content is not a valid configuration.
+        RuntimeError: If the file cannot be read.
+    """
     try:
         return SandboxConfig.model_validate_json(
             Path(path_sandbox_config).read_text()

@@ -1,3 +1,4 @@
+"""Restrictions applied to the worker process of the sandbox."""
 from .SandboxConfig import SandboxConfig
 
 from types import ModuleType
@@ -13,6 +14,16 @@ import socket
 
 def valid_module(module: ModuleType,
                  authorized_imports: List[str]) -> ModuleType:
+    """Return a filtered copy of a module.
+
+    Private names (starting with "_") and sub-modules that are not
+    authorized are removed, so that the code cannot reach e.g. os
+    through an allowed module.
+
+    Args:
+        module: Module to filter.
+        authorized_imports: Allowed module names or "package.*" patterns.
+    """
     new_mod = ModuleType(module.__name__)
     for name in dir(module):
         if name.startswith('_'):
@@ -27,6 +38,11 @@ def valid_module(module: ModuleType,
 
 
 def check_allowed_import(name: str, authorized_import: List[str]) -> bool:
+    """Return True if a module name matches an authorized pattern.
+
+    A pattern is either an exact module name or "package.*", which
+    matches every sub-module of the package.
+    """
     for pattern in authorized_import:
         if pattern.endswith(".*"):
             if name.startswith(pattern[:-1]):
@@ -37,7 +53,14 @@ def check_allowed_import(name: str, authorized_import: List[str]) -> bool:
 
 
 def make_import(authorized: List[str]) -> Callable[..., ModuleType]:
-    """Make restricted builtin __import__"""
+    """Build a restricted __import__ builtin.
+
+    Only absolute imports of authorized modules are allowed, and the
+    imported modules are filtered with valid_module() (results are cached).
+
+    Args:
+        authorized: Allowed module names or "package.*" patterns.
+    """
     cache: Dict[str, ModuleType] = {}
 
     def restricted_import(
@@ -47,6 +70,7 @@ def make_import(authorized: List[str]) -> Callable[..., ModuleType]:
             fromlist: Optional[Sequence[str]] = (),
             level: int = 0
             ) -> ModuleType:
+        """Import a module if it is authorized, raise ImportError if not."""
         if level != 0 or not check_allowed_import(name, authorized):
             raise ImportError(
                 f"Import of '{name}' is not allowed. "
@@ -60,6 +84,10 @@ def make_import(authorized: List[str]) -> Callable[..., ModuleType]:
 
 
 def check_path_allowed(path: str, allowed_dir: List[str]) -> bool:
+    """Return True if a path is inside one of the allowed directories.
+
+    Symbolic links and ".." are resolved before the check.
+    """
     real = os.path.realpath(path)
     for directory in allowed_dir:
         base = os.path.realpath(directory)
@@ -69,8 +97,13 @@ def check_path_allowed(path: str, allowed_dir: List[str]) -> bool:
 
 
 def make_open(allowed_dir: List[str]) -> Callable[..., Any]:
-    """make builtin restricted open builtin"""
+    """Build a restricted open builtin.
+
+    Args:
+        allowed_dir: Directories in which files can be opened.
+    """
     def restricted_open(file, *args, **kwargs):
+        """Open a file, raise PermissionError if it is not allowed."""
         if not isinstance(file, (str, bytes, os.PathLike)):
             raise PermissionError("open() only accepts file paths")
         path = os.fsdecode(file)
@@ -85,7 +118,14 @@ def make_open(allowed_dir: List[str]) -> Callable[..., Any]:
 
 
 def build_builtins(config: SandboxConfig) -> Dict:
-    """ Create authorize builtin"""
+    """Build the builtins of the sandbox namespace.
+
+    Keep only the authorized builtins and replace __import__ and open by
+    their restricted versions.
+
+    Args:
+        config: Sandbox configuration.
+    """
     safe_builtins = {
         name: getattr(builtins, name)
         for name in config.authorized_builtins
@@ -103,11 +143,17 @@ def apply_memory_restricted(max_memory_mb: int) -> None:
 
 
 def truncke_output(output: str, max_len: int) -> Tuple[str, bool]:
-    """Truncke output with max size, return new size of new output and add
-    message to inform trucatded output
-    Return :
-        - new output -> str
-        - if output has truncked -> bool
+    """Cut an output to max_len characters.
+
+    When the output is cut, a notice with the original length is added at
+    the end.
+
+    Args:
+        output: Text to truncate.
+        max_len: Maximum number of characters kept.
+
+    Returns:
+        The new output and True if it was truncated.
     """
     len_output = len(output)
     is_truncke = False
@@ -125,14 +171,23 @@ def truncke_output(output: str, max_len: int) -> Tuple[str, bool]:
 
 
 def restricted_conn() -> None:
+    """Disable network access in the current process.
+
+    Socket creation and name resolution functions of the socket module
+    are replaced by functions that raise PermissionError.
+    """
     def refuse(*args, **kwargs) -> None:
+        """Raise PermissionError for any network access."""
         raise PermissionError("Network access is disabled in the sandbox")
 
     class BlockedSocket(socket.socket):
+        """Socket class that cannot be instantiated."""
+
         def __init__(self, *args, **kwargs):
+            """Refuse the creation of the socket."""
             refuse()
 
-    socket.socket = BlockedSocket
+    socket.socket = BlockedSocket  # type: ignore[misc]
     socket.SocketType = BlockedSocket
     for name in ("create_connection", "create_server", "fromfd",
                  "getaddrinfo", "gethostbyname", "gethostbyname_ex",

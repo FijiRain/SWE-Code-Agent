@@ -1,3 +1,4 @@
+"""Wrappers that expose MCP tools as Python functions in the worker."""
 from .McpClient import ToolSpec
 from .McpClient import McpToolError
 
@@ -5,7 +6,7 @@ from typing import Callable, Tuple, Dict, List, Any
 from multiprocessing.connection import Connection
 from pydantic import BaseModel, Field
 
-TYPES = {
+TYPES: Dict[str, type | Tuple[type, ...]] = {
     "integer": int,
     "string": str,
     "number": (int, float),
@@ -17,6 +18,8 @@ TYPES = {
 
 
 class WorkerToolMessageOutput(BaseModel):
+    """Tool call request sent by the worker to the main process."""
+
     name: str = Field(default="", description="name of tool")
     args: Dict[str, Any] = Field(
         default_factory=dict,
@@ -25,11 +28,14 @@ class WorkerToolMessageOutput(BaseModel):
 
 
 class WorkerToolMessageIntput(BaseModel):
+    """Tool call result sent by the main process to the worker."""
+
     error: bool = Field(default=False, description="If error ar occured")
     output: str = Field(default="", description="output of calling tool")
 
 
 def signature(spec: ToolSpec) -> str:
+    """Return a readable signature of the tool, e.g. "add(a: integer)"."""
     props = spec.input_schema.get("properties", {})
     params = ", ".join(f"{n}: {p.get('type', 'any')}" for n, p
                        in props.items())
@@ -37,6 +43,18 @@ def signature(spec: ToolSpec) -> str:
 
 
 def check_type(arg: Any, schema: Dict) -> bool:
+    """Check that an argument matches the JSON schema type of a parameter.
+
+    Unknown or missing types are accepted, booleans are only accepted for
+    "boolean", and a float with no decimal part is accepted for "integer".
+
+    Args:
+        arg: Value given by the code.
+        schema: JSON schema of the parameter.
+
+    Returns:
+        True if the value has an expected type.
+    """
     expected = schema.get("type")
     if isinstance(expected, str):
         expected = [expected]
@@ -56,6 +74,22 @@ def verif_params(
         required: List,
         spec: ToolSpec
         ) -> Dict:
+    """Bind positional and keyword arguments to the tool parameters.
+
+    Args:
+        args: Positional arguments given by the code.
+        kwargs: Keyword arguments given by the code.
+        names: Parameter names, in schema order.
+        required: Names of the required parameters.
+        spec: Specification of the tool.
+
+    Returns:
+        The arguments indexed by parameter name.
+
+    Raises:
+        TypeError: If there are too many, unknown, duplicated or missing
+            arguments, or if an argument has the wrong type.
+    """
     if (len(kwargs) + len(args) > len(names)):
         raise TypeError(
             "Too many arguments: "
@@ -108,10 +142,29 @@ def verif_params(
 
 
 def make_tools_wrapper(spec: ToolSpec, conn: Connection) -> Callable[..., Any]:
+    """Build a function that calls an MCP tool from the worker.
+
+    The function checks its arguments, sends a "tool_call" message to the
+    main process and waits for the "tool_result" answer.
+
+    Args:
+        spec: Specification of the tool.
+        conn: Pipe connection to the main process.
+
+    Returns:
+        A function named like the tool, returning the tool text output.
+    """
     names = list(spec.input_schema.get("properties", {}))
     required = spec.input_schema.get("required", [])
 
     def wrapper(*args, **kwargs):
+        """Call the MCP tool through the main process.
+
+        Raises:
+            TypeError: If the arguments do not match the tool schema.
+            McpToolError: If the tool reports an error.
+            RuntimeError: If the main process sends an unexpected message.
+        """
         tool_args = verif_params(args, kwargs, names, required, spec)
         ouptut = WorkerToolMessageOutput(
             name=spec.name,

@@ -6,8 +6,8 @@ It exposes a few tools with different kinds of parameters and results, one
 resource and one prompt.
 
 Run it:
-    python mini_mcp_server.py          # stdio (the client launches it)
-    python mini_mcp_server.py http
+    python mcp_server_test.py          # stdio (the client launches it)
+    python mcp_server_test.py http
     # streamable HTTP (default: http://127.0.0.1:8000/mcp)
 
 Warning: with stdio, never print() to stdout in this file, it would corrupt
@@ -30,7 +30,7 @@ def add(a: int, b: int) -> int:
 
 @mcp.tool()
 def add_tree_nb(a: int, b: int, c: int) -> int:
-    """Add tree integers."""
+    """Add three integers."""
     return a + b + c
 
 

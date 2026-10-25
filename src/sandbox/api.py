@@ -1,3 +1,4 @@
+"""Public sandbox API: run LLM generated code in a worker process."""
 from .ExecutionResult import ExecutionResult, FinalAnswerSignal
 from .SandboxConfig import SandboxConfig
 from .restricted_sandbox import (
@@ -25,22 +26,24 @@ STARTUP_TIMEOUT = 10
 
 
 class PipeWriter:
+    """File-like object that sends written text to the main process.
+
+    Used with redirect_stdout so that print() and sys.stdout.write() in
+    the worker are streamed through the pipe as ("stdout", text) messages.
     """
-    Class to write in Pip text on the main process
-    This is an emulation to allow the use of os.stdout.write.
-    """
+
     def __init__(self, conn: Connection) -> None:
-        """Init object withe connection at Pipe"""
+        """Store the pipe connection to the main process."""
         self._conn = conn
 
     def write(self, text: str) -> int:
-        """Send text in Pipe"""
+        """Send text through the pipe and return its length."""
         if text:
             self._conn.send(("stdout", text))
         return len(text)
 
     def flush(self) -> None:
-        """ obligatory function"""
+        """Do nothing, required by the file-like interface."""
         pass
 
 
@@ -49,6 +52,18 @@ def code_worker_loop(
         config: SandboxConfig,
         tools: Dict[str, ToolSpec]
         ) -> None:
+    """Run the worker process loop that executes code snippets.
+
+    Apply the memory and network restrictions, build the restricted
+    namespace (builtins, MCP tool wrappers, final_answer), then send
+    "ready" and execute each received snippet until None or EOF. Every
+    execution ends with a ("result", ExecutionResult) message.
+
+    Args:
+        conn: Pipe connection to the main process.
+        config: Sandbox configuration.
+        tools: MCP tools to expose in the namespace, indexed by name.
+    """
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     apply_memory_restricted(config.max_memory_mb)
     restricted_conn()
@@ -66,6 +81,7 @@ def code_worker_loop(
     state_final_answer["answer"] = None
 
     def final_answer(value):
+        """Record the final answer and stop the running code."""
         state_final_answer["answer"] = str(value)
         raise FinalAnswerSignal(value)
     namespace["final_answer"] = final_answer
@@ -110,33 +126,51 @@ def code_worker_loop(
 
 
 class Sandbox:
-    """Execute LLM generated code in a restricted environement"""
+    """Execute LLM generated code in a restricted environment.
+
+    The code runs in a separate worker process. Variables persist between
+    calls to execute() until the worker is restarted (timeout or crash).
+    MCP tool calls made by the code are forwarded by the main process to
+    the MCP server.
+    """
+
     def __init__(self,
                  mcp_command: str,
                  sandbox_config: SandboxConfig | None = None,
                  ) -> None:
-        """Init sandbox"""
+        """Connect to the MCP server and start the worker process.
+
+        Args:
+            mcp_command: Command line that starts the MCP server.
+            sandbox_config: Sandbox configuration, the default one if None.
+
+        Raises:
+            McpConnectionError: If the MCP server cannot be reached.
+            RuntimeError: If the worker process fails to start.
+        """
         self.__config = sandbox_config or SandboxConfig()
-        self._mcp_bridge: McpBridge | None = None
         self._tools_list: Dict[str, ToolSpec] = {}
 
-        if mcp_command is not None:
-            self._mcp_bridge = McpBridge(mcp_command)
-            try:
-                self._mcp_bridge.connect()
-                self._tools_list = self._mcp_bridge.get_tools_list()
-            except BaseException:
-                self._mcp_bridge.close()
-                raise
-            try:
-                self._start_work_process()
-            except BaseException:
-                if self._mcp_bridge is not None:
-                    self._mcp_bridge.close
-                raise
+        self._mcp_bridge = McpBridge(mcp_command)
+        try:
+            self._mcp_bridge.connect()
+            self._tools_list = self._mcp_bridge.get_tools_list()
+        except BaseException:
+            self._mcp_bridge.close()
+            raise
+        try:
+            self._start_work_process()
+        except BaseException:
+            self._mcp_bridge.close()
+            raise
 
     def _start_work_process(self) -> None:
-        """Init the launche of work process to execut code"""
+        """Start the worker process and wait for its "ready" message.
+
+        Raises:
+            RuntimeError: If the worker does not answer within
+                STARTUP_TIMEOUT seconds or dies during startup.
+        """
         ctx = mp.get_context("spawn")
         self._conn, child_con = ctx.Pipe()
         self._process = ctx.Process(
@@ -166,11 +200,24 @@ class Sandbox:
             )
 
     def _restart_work_process(self) -> None:
+        """Replace the worker by a new one with an empty namespace."""
         self._stop_worker()
         self._start_work_process()
 
     def execute(self, code: str) -> ExecutionResult:
-        """Execute the code"""
+        """Execute code in the worker and return its result.
+
+        Stdout is collected while the code runs, and tool calls are
+        forwarded to the MCP server. Time spent in tools is not counted in
+        the timeout. On timeout or crash the worker is restarted and all
+        variables are lost.
+
+        Args:
+            code: Python source code to execute.
+
+        Returns:
+            The execution result, with stdout truncated to max_len_output.
+        """
         timed_out = False
         chunks: List[str] = []
         deadline = time.monotonic() + self.__config.max_execution_time_seconds
@@ -256,7 +303,7 @@ class Sandbox:
         ...
 
     def _stop_worker(self) -> None:
-        """Kill the running process"""
+        """Ask the worker to stop, kill it if needed and close the pipe."""
         try:
             self._conn.send(None)
         except (EOFError, OSError):
@@ -268,6 +315,6 @@ class Sandbox:
         self._conn.close()
 
     def close(self) -> None:
+        """Stop the worker process and close the MCP connection."""
         self._stop_worker()
-        if self._mcp_bridge is not None:
-            self._mcp_bridge.close()
+        self._mcp_bridge.close()

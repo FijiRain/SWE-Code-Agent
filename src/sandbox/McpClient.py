@@ -1,3 +1,4 @@
+"""Asynchronous MCP client that talks to a server started over stdio."""
 import shlex
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -11,6 +12,8 @@ import shutil
 
 
 class ToolSpec(BaseModel):
+    """Description of one tool exposed by the MCP server."""
+
     name: str = Field(
         ...,
         description="name of tool"
@@ -20,7 +23,7 @@ class ToolSpec(BaseModel):
         description="Description of tool"
     )
     input_schema: dict = Field(
-        default_factory={},
+        default_factory=dict,
         description="Argument of tool"
     )
 
@@ -34,7 +37,17 @@ class McpConnectionError(Exception):
 
 
 def check_server_command(parts: List[str]) -> None:
-    """Fail early, with a clear message, if the server cannot be started."""
+    """Fail early, with a clear message, if the server cannot be started.
+
+    Check that the program exists in the PATH and, for a Python command,
+    that the script given as first non-option argument exists.
+
+    Args:
+        parts: The server command split into program and arguments.
+
+    Raises:
+        McpConnectionError: If the program or the Python script is missing.
+    """
     program = parts[0]
     if shutil.which(program) is None:
         raise McpConnectionError(
@@ -58,7 +71,18 @@ def check_server_command(parts: List[str]) -> None:
 
 
 class McpClient:
+    """Client of an MCP server launched as a subprocess over stdio."""
+
     def __init__(self, command: str):
+        """Parse and check the command that starts the MCP server.
+
+        Args:
+            command: Shell-like command line that starts the server.
+
+        Raises:
+            McpConnectionError: If the command is invalid or not runnable.
+            ValueError: If the command is empty.
+        """
         try:
             parts = shlex.split(command)
         except ValueError as e:
@@ -72,6 +96,12 @@ class McpClient:
         )
 
     async def connect(self) -> None:
+        """Start the server and initialize the MCP session.
+
+        Raises:
+            McpConnectionError: If the server cannot be started or does not
+                finish initialization within 10 seconds.
+        """
         self._stack = AsyncExitStack()
         try:
             read, write = await self._stack.enter_async_context(
@@ -90,7 +120,8 @@ class McpClient:
                 f"Cannot connect to the MCP server: {e}") from e
 
     async def get_mcp_tool(self) -> Dict[str, ToolSpec]:
-        mcp_tools: Dict[ToolSpec] = {}
+        """Return the tools exposed by the server, indexed by name."""
+        mcp_tools: Dict[str, ToolSpec] = {}
         tools = await self._session.list_tools()
         for tool in tools.tools:
             mcp_tool = ToolSpec(
@@ -102,6 +133,18 @@ class McpClient:
         return mcp_tools
 
     async def call_tool(self, name: str, arguments: Dict) -> str:
+        """Call a tool and return its result as text.
+
+        Text blocks are joined with newlines, other block types are
+        replaced by a short "<type> omitted" notice.
+
+        Args:
+            name: Name of the tool to call.
+            arguments: Arguments passed to the tool.
+
+        Raises:
+            McpToolError: If the server reports that the tool failed.
+        """
         result = await self._session.call_tool(name, arguments)
         chunk = []
         for block in result.content:
@@ -115,4 +158,5 @@ class McpClient:
         return text
 
     async def close(self):
+        """Close the MCP session and stop the server process."""
         await self._stack.aclose()

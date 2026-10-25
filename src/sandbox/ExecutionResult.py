@@ -1,3 +1,4 @@
+"""Result model of a sandbox execution and the final answer signal."""
 from pydantic import BaseModel, Field
 
 
@@ -38,6 +39,12 @@ class ExecutionResult(BaseModel):
 
 
 class FinalAnswerSignal(BaseException):
-    """ Call by final_answer() to stop  the running code"""
+    """Raised by final_answer() to stop the running code.
+
+    It derives from BaseException so that a bare ``except Exception`` in
+    the executed code does not catch it.
+    """
+
     def __init__(self, value) -> None:
+        """Store the value passed to final_answer()."""
         self.value = value

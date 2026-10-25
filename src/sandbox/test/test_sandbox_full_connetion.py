@@ -40,10 +40,12 @@ RESULTS: List[bool] = []
 
 
 def title(text: str) -> None:
+    """Print the title of a test section."""
     print(f"\n*** {text} ***")
 
 
 def show(result: ExecutionResult) -> None:
+    """Print every field of an execution result."""
     print(f"STDOUT: {result.stdout!r}")
     print(f"ERROR: {result.error!r}")
     print(f"TIMED_OUT: {result.timed_out} | TRUNCATED: {result.truncated} "
@@ -51,6 +53,7 @@ def show(result: ExecutionResult) -> None:
 
 
 def expect(label: str, condition: bool) -> None:
+    """Record a check and print PASS or FAIL with its label."""
     RESULTS.append(condition)
     status = f"{GREEN}PASS{RESET}" if condition else f"{RED}FAIL{RESET}"
     print(f"[{status}] {label}")
@@ -65,6 +68,7 @@ def run(sand: Sandbox, code: str) -> ExecutionResult:
 
 
 def summary() -> int:
+    """Print the number of passed checks, return 1 if one failed."""
     failed = RESULTS.count(False)
     passed = len(RESULTS) - failed
     color = GREEN if failed == 0 else RED
@@ -77,6 +81,7 @@ def summary() -> int:
 # --------------------------------------------------------------------------
 
 def test_basics(sand: Sandbox) -> None:
+    """Check simple prints, variable persistence and classes."""
     title("Basic Test")
     r = run(sand, "print('end')")
     expect("stdout is 'end' (no confusion with a protocol keyword)",
@@ -93,6 +98,7 @@ def test_basics(sand: Sandbox) -> None:
 
 
 def test_final_answer(sand: Sandbox) -> None:
+    """Check final_answer() and its reset between executions."""
     title("Final Answer Test")
     r = run(sand, "print('a')\nfinal_answer('b')")
     expect("stdout is 'a' and final_answer is 'b'",
@@ -108,6 +114,7 @@ def test_final_answer(sand: Sandbox) -> None:
 
 
 def test_errors(sand: Sandbox) -> None:
+    """Check that errors are reported and the worker survives."""
     title("Python Error Test")
     r = run(sand, "1 / 0")
     expect("ZeroDivisionError is reported", "ZeroDivisionError" in r.error)
@@ -137,6 +144,7 @@ def test_errors(sand: Sandbox) -> None:
 
 
 def test_imports(sand: Sandbox) -> None:
+    """Check allowed, refused and filtered imports."""
     title("Allowed Imports Test")
     r = run(sand, "import math\nprint(math.sqrt(4))")
     expect("import math works", r.stdout == "2.0\n")
@@ -160,6 +168,7 @@ def test_imports(sand: Sandbox) -> None:
 
 
 def test_builtins(sand: Sandbox) -> None:
+    """Check that dangerous builtins are not available."""
     title("Dangerous Builtins Test")
     for code in ("eval('1 + 1')", "exec('x = 1')",
                  "compile('1', 'f', 'eval')", "getattr(1, 'real')",
@@ -169,6 +178,7 @@ def test_builtins(sand: Sandbox) -> None:
 
 
 def test_files(sand: Sandbox) -> None:
+    """Check that open() is limited to the allowed directories."""
     title("Allowed Directory Test")
     r = run(sand,
             "with open('/tmp/agent/test.txt', 'w') as f:\n"
@@ -184,6 +194,7 @@ def test_files(sand: Sandbox) -> None:
 
 
 def test_truncation(sand: Sandbox) -> None:
+    """Check the truncation of long outputs."""
     title("Output Truncation Test")
     r = run(sand, "print('a' * 500)")
     expect("truncated flag and notice present",
@@ -194,6 +205,7 @@ def test_truncation(sand: Sandbox) -> None:
 
 
 def test_memory(sand: Sandbox) -> None:
+    """Check the memory limit of the worker."""
     title("Memory Limit Test (Linux only)")
     r = run(sand, "x = bytearray(1024 * 1024 * 1024)")
     expect("1 GiB allocation fails (MemoryError or crash message)",
@@ -210,11 +222,12 @@ def test_memory(sand: Sandbox) -> None:
 
 
 # --------------------------------------------------------------------------
-# MCP tools (the test server exposes add, echo, run_tests, big_output,
-# slow and fail)
+# MCP tools (the test server exposes add, add_tree_nb, echo, run_tests,
+# big_output, slow and fail)
 # --------------------------------------------------------------------------
 
 def test_mcp_tools(sand: Sandbox) -> None:
+    """Check calls to the MCP tools from the sandbox."""
     title("MCP Tools Are In The Namespace")
     r = run(sand,
             "names = dir()\n"
@@ -278,6 +291,7 @@ def test_mcp_tools(sand: Sandbox) -> None:
 
 
 def test_mcp_errors(sand: Sandbox) -> None:
+    """Check argument errors and tool errors."""
     title("Missing Argument")
     r = run(sand, "add(1)")
     expect("refused, mentions the missing argument",
@@ -330,6 +344,7 @@ def test_mcp_errors(sand: Sandbox) -> None:
 
 
 def test_mcp_limits(sand: Sandbox) -> None:
+    """Check tool time and tool output limits."""
     title("Tool Time Is Not Counted In The Timeout")
     r = run(sand, "print(slow(4))")
     expect("a 4 s tool succeeds with a 3 s timeout",
@@ -362,6 +377,7 @@ def test_mcp_limits(sand: Sandbox) -> None:
 # --------------------------------------------------------------------------
 
 def test_timeouts(sand: Sandbox) -> None:
+    """Check timeouts and the restart of the worker."""
     title("Time Out With Partial Output Test")
     r = run(sand, "print('a')\nprint('b')\nwhile True:\n    pass")
     expect("timed_out is True and stdout is 'a\\nb\\n'",
@@ -395,6 +411,7 @@ def test_timeouts(sand: Sandbox) -> None:
 # --------------------------------------------------------------------------
 
 def test_crash(config: SandboxConfig) -> None:
+    """Check that a worker crash is reported and recovered."""
     # os is allowed here only to be able to kill the worker on purpose.
     # (os._exit is hidden by the "_" filter, so we use os.kill instead.)
     crash_config = config.model_copy(update={
@@ -418,6 +435,7 @@ def test_crash(config: SandboxConfig) -> None:
 
 
 def test_network(config: SandboxConfig) -> None:
+    """Check that the network is blocked only in the worker."""
     # socket is allowed here so that only the network block protects us.
     net_config = config.model_copy(update={
         "authorized_imports": config.authorized_imports + ["socket"],
@@ -456,6 +474,7 @@ def test_network(config: SandboxConfig) -> None:
 # --------------------------------------------------------------------------
 
 def test_lifecycle(config: SandboxConfig) -> None:
+    """Check creation failures and close() of the sandbox."""
     title("Default Configuration")
     sand = Sandbox(MCP_COMMAND)
     try:
@@ -539,6 +558,7 @@ def server_processes_left() -> Optional[bool]:
 
 
 def test_no_leftovers() -> None:
+    """Check that no worker or server process is left running."""
     title("No Process Left Behind")
     time.sleep(1)   # let the processes finish
     expect("no multiprocessing worker alive", len(mp.active_children()) == 0)
@@ -550,6 +570,7 @@ def test_no_leftovers() -> None:
 
 
 def main() -> int:
+    """Run every test and return the exit code."""
     base = load_config(CONFIG_PATH)
     config = base.model_copy(update={
         "max_execution_time_seconds": 3,   # keep timeout tests fast
