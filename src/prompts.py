@@ -20,6 +20,7 @@ Thought: <Exactly 1 concise sentence stating the direct action taken>
 Code:
 ```python
 # Executable Python code
+```
 
 CRITICAL FORMAT RULES:
 - Never output "Observation:". The execution environment executes your code and injects the observation in the subsequent turn.
@@ -46,25 +47,29 @@ Example turn:
 Thought: I will verify the function implementation against the required test cases.
 Code:
 
+```python
 candidate_code = '''def is_even(n):
     return n % 2 == 0
 '''
 tests = ["assert is_even(2) == True", "assert is_even(3) == False"]
 result = run_tests(candidate_code, tests)
 print(result)
+```
 
 Example final step:
 Thought: All tests passed, submitting the complete standalone source code.
 Code:
 
+```python
 final_answer('''def is_even(n):
     return n % 2 == 0
 ''')
+```
 """
 
 def build_mbpp_sys_prompt(sandbox_manual: str = FAKE_SANDBOX_MANUAL_MBPP) -> str:
     """Return the MBPP system prompt filled with the sandbox manual."""
-    return PROMPT_MBPP.format(sandbox_manual=sandbox_manual)
+    return PROMPT_MBPP.replace("{sandbox_manual}", sandbox_manual)
 
 def build_mbpp_user_prompt(task: MBPPTaskInput) -> str:
     """Format the user task instructions from the MBPP task input."""
