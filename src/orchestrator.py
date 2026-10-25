@@ -3,12 +3,26 @@ import time
 from openai import (OpenAI, APIStatusError,
                     APIConnectionError, APITimeoutError)
 from openai.types.chat import ChatCompletionMessageParam
+from dataclasses import dataclass
+from typing import Optional
 
 from .key_manager import KeyManager
 from .exception import KeyQuotaError, ServerError, FatalError
 from .models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from .models.output_data_models import SolutionOutput, StepMetrics
 from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
+
+
+@dataclass
+class Limits:
+    max_iterations: int
+    max_input_tokens: int
+    max_output_tokens: int
+    timeout_seconds: float
+
+
+MBPP_LIMITS = Limits(10, 6000, 1500, 120.0)
+SWE_LIMITS = Limits(30, 300000, 10000, 900.0)
 
 
 class Orchestrator:
@@ -20,10 +34,6 @@ class Orchestrator:
         self.provider_url = provider_url
         self.provider = self.load_provider(provider_url)
         self.key_manager = KeyManager(self.provider)
-
-        self.total_retries = 0
-        self.total_time = 0
-        self.max_iterations = 0
 
         self.sandbox = ...  # Anatole ici
         self.sys_prompt = ""
@@ -130,13 +140,23 @@ class Orchestrator:
                       ) -> SolutionOutput:
         """Execute the agentic loop to solve the task and return solution."""
 
+        self.all_steps.clear()
         self.build_context(task)
 
-        current_iterations = 0  # max iteration 10
-        total_input_token = 0 # max 6000, input prompt ≈ 540 tokens
-        total_output_token = 0  # max 1500
-        total_task_time = 0  # time-out 120s
+        if isinstance(task, MBPPTaskInput):
+            limits = MBPP_LIMITS
+            benchmark_type = "mbpp"
+            id = str(task.task_id)
+        else:
+            limits = SWE_LIMITS
+            benchmark_type = "swebench"
+            id = str(task.instance_id) # verif si ca marche avec le Field()
+
         solved = False
+        start_time = time.time()
+        current_iterations = 0
+        solution = ""
+        error = None
         while current_iterations < self.max_iterations and not solved:
             current_iterations += 1
             res = self.query_llm()
@@ -144,6 +164,7 @@ class Orchestrator:
             # on extrait le code et on l'envoie a la sanbox
             # on recoit la rep de la sandbox : self.context.append({"role": "user", "content": f"Observation:\n{sandbox_output}"}).
             # resumer l'historique ??? a laide
+
             step = StepMetrics(
                 step=current_iterations,
                 input_tokens=self.step_input_tokens,
@@ -157,11 +178,37 @@ class Orchestrator:
                 retries=self.step_retries
             )
             self.all_steps.append(step)
-            if solved:
+
+            stop, error = self.stop_loop(iterations=len(self.all_steps),
+                                         input_tok=sum(s.input_tokens
+                                                       for s
+                                                       in self.all_steps),
+                                         output_tok=sum(s.output_tokens
+                                                        for s
+                                                        in self.all_steps),
+                                         time=time.time() - start_time,
+                                         limits=limits,
+                                         solved=solved)
+            if stop:
                 break
             # Au tour suivant, call_api() renvoie automatiquement tout l'historique mis à jour
-        # on renvoie l'objet SolutionOutput validé et tada
-        ...
+        total_time = time.time() - start_time
+        return SolutionOutput(task_id=id,
+                              benchmark=benchmark_type,
+                              success=solved,
+                              solution=solution,
+                              iterations=len(self.all_steps),
+                              total_requests=len(self.all_steps)
+                              + sum(s.retries for s in self.all_steps),
+                              total_input_tokens=sum(s.input_tokens
+                                                     for s in self.all_steps),
+                              total_output_tokens=sum(s.output_tokens
+                                                      for s in self.all_steps),
+                              total_time_seconds=total_time,
+                              steps=self.all_steps,
+                              system_prompt=self.sys_prompt,
+                              error=error if not solved else None,
+                              )
 
     def build_context(self, task: MBPPTaskInput | SWEBenchTaskInput) -> None:
         if isinstance(task, MBPPTaskInput):
@@ -178,8 +225,21 @@ class Orchestrator:
         self.context = [{"role": "system", "content": self.sys_prompt},
                         {"role": "user", "content": self.user_prompt}]
 
-
-    def stop_loop(self, input_tok: int,
+    def stop_loop(self, iterations: int,
+                  input_tok: int,
                   output_tok: int,
-                  time: int) -> bool:
-        ...
+                  time: float,
+                  limits: Limits,
+                  solved: bool) -> tuple[bool, Optional[str]]:
+        if solved:
+            return True, None
+        if iterations >= limits.max_iterations:
+            return True, "Max iterations limit reached"
+        if input_tok >= limits.max_input_tokens:
+            return True, "Max input tokens exceeded"
+        if output_tok >= limits.max_output_tokens:
+            return True, "Max output tokens exceeded"
+        if time >= limits.timeout_seconds:
+            return True, "Execution timeout exceeded"
+
+        return False, None

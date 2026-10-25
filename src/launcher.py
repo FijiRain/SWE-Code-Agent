@@ -44,4 +44,4 @@ def run_SWE():
 # --task-file test_mbpp_task.json
 # --output ../cache/mbpp_solution.json
 # --model-name "openrouter/free"
-# --provider-url "https://openrouter.api/v1"
+# --provider-url "https://openrouter.ai/api/v1"
