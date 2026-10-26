@@ -170,8 +170,12 @@ class Orchestrator:
                 break
             self.context.append({"role": "assistant", "content": answer})
             sandbox_input = extract_code(answer)
-            # sandbox_output = self.sandbox.execute(sandbox_input)
-            # self.context.append({"role": "user", "content": f"Observation:\n{sandbox_output}"}).
+            if sandbox_input is None:
+                sandbox_input = ""
+                sandbox_output = ("Error: No valid Python code block found. "
+                                  "Wrap your code in ```python ... ```.")
+            sandbox_output = self.sandbox.execute(sandbox_input)
+            self.context.append({"role": "user", "content": f"Observation:\n{sandbox_output}"})
             # resumer l'historique ??? a laide
 
             step = StepMetrics(
@@ -182,8 +186,8 @@ class Orchestrator:
                 api_url=self.provider_url,
                 model_name=self.model,
                 llm_output=answer,
-                sandbox_input="NON DISPONIBLE",
-                sandbox_output="NON DISPONIBLE",
+                sandbox_input=sandbox_input,
+                sandbox_output=sandbox_output,
                 retries=self.step_retries
             )
             self.all_steps.append(step)
