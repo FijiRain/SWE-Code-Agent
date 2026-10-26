@@ -1,6 +1,8 @@
 from src.tools.path_utils import resolve_testbed_path, get_testbed_root
 import subprocess
 import os
+import sys
+import json
 
 
 def run_command(command: str, workdir: str = ".") -> str:
@@ -75,4 +77,24 @@ def run_swebench_tests() -> str:
 
 
 def run_mbpp_tests(code: str, test_list: list[str]) -> str:
-    pass
+    timeout = 30
+
+    script_lines = [code, "\n"]
+    for test in test_list:
+        script_lines.append(test)
+    full_script = "\n".join(script_lines)
+    command = [sys.executable, "-c", full_script]
+    try:
+        process = subprocess.run(command, capture_output=True,
+                                 text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        success = False
+        output = f"Execution timed out after {timeout} seconds."
+        return json.dumps({"success": success, "output": output})
+
+    if process.returncode == 0:
+        success = True
+        output = f"All {len(test_list)} assertions passed."
+    else:
+        success = False
+        output = process.stderr.strip()
