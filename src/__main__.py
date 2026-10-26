@@ -1,5 +1,6 @@
 """Entry point of the project: run the sandbox test script."""
 from .sandbox.test.test_sandbox_full_connetion import main
+from .sandbox.repl import repl
 
 
 def test_manual() -> None:
@@ -11,5 +12,6 @@ def test_manual() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    repl("python src/sandbox/test/mcp_server_test.py")
     # test_manual()
