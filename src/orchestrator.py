@@ -12,6 +12,7 @@ from .exception import (KeyQuotaError, ServerError,
 from .models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from .models.output_data_models import SolutionOutput, StepMetrics
 from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
+from .py_extractor import extract_code
 
 
 @dataclass
@@ -153,6 +154,7 @@ class Orchestrator:
             benchmark_type = "swebench"
             id_bench = str(task.instance_id)
 
+        '''#_#_#_# AGENT LOOP #_#_#_#'''
         solved = False
         start_time = time.time()
         current_iterations = 0
@@ -161,12 +163,13 @@ class Orchestrator:
         while current_iterations < limits.max_iterations and not solved:
             current_iterations += 1
             try:
-                res = self.query_llm()
+                answer = self.query_llm()
             except ProviderRequestError as e:
                 error = str(e)
                 break
-            self.context.append({"role": "assistant", "content": res})
-            # on extrait le code et on l'envoie a la sanbox
+            self.context.append({"role": "assistant", "content": answer})
+            sandbox_input = extract_code(answer)
+            # self.sandbox.execute(sandbox_input)
             # on recoit la rep de la sandbox : self.context.append({"role": "user", "content": f"Observation:\n{sandbox_output}"}).
             # resumer l'historique ??? a laide
 
@@ -177,7 +180,7 @@ class Orchestrator:
                 request_time_ms=self.step_time,
                 api_url=self.provider_url,
                 model_name=self.model,
-                llm_output=res,
+                llm_output=answer,
                 sandbox_input="NON DISPONIBLE",
                 sandbox_output="NON DISPONIBLE",
                 retries=self.step_retries
