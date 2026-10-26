@@ -83,7 +83,7 @@ class SandboxConfig(BaseModel):
     max_len_tool_output: int = 3000
 
 
-def load_config(path_sandbox_config: str):
+def load_config(path_sandbox_config: str) -> SandboxConfig:
     """Load the sandbox configuration from a JSON file.
 
     Args:

@@ -13,7 +13,7 @@ from .wrapper_tools import (
 )
 from .manual_manager import build_manual, make_tool_help
 
-from typing import Dict, List
+from typing import Any, Dict, List, NoReturn, cast
 from contextlib import redirect_stdout
 from multiprocessing.connection import Connection
 import multiprocessing as mp
@@ -83,7 +83,7 @@ def code_worker_loop(
     state_final_answer: Dict = {}
     state_final_answer["answer"] = None
 
-    def final_answer(value):
+    def final_answer(value: Any) -> NoReturn:
         """Record the final answer and stop the running code."""
         state_final_answer["answer"] = str(value)
         raise FinalAnswerSignal(value)
@@ -263,7 +263,7 @@ class Sandbox:
                     )
                     payload.stdout = output
                     payload.truncated = is_truncate or tool_truncated
-                    return payload
+                    return cast(ExecutionResult, payload)
 
         except (EOFError, OSError):
             pass

@@ -157,6 +157,6 @@ class McpClient:
             raise McpToolError(text)
         return text
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the MCP session and stop the server process."""
         await self._stack.aclose()

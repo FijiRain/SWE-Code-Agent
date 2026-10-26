@@ -1,4 +1,5 @@
 """Result model of a sandbox execution and the final answer signal."""
+from typing import Any
 from pydantic import BaseModel, Field
 
 
@@ -45,6 +46,6 @@ class FinalAnswerSignal(BaseException):
     the executed code does not catch it.
     """
 
-    def __init__(self, value) -> None:
+    def __init__(self, value: Any) -> None:
         """Store the value passed to final_answer()."""
         self.value = value

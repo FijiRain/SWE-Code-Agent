@@ -1,3 +1,4 @@
+"""Build the manual given to the LLM and the tool_help() function."""
 from .SandboxConfig import SandboxConfig
 from .McpClient import ToolSpec
 
@@ -10,11 +11,21 @@ import textwrap
 TEMPLATE_PATH = Path(__file__).parent / "templates" / "manual_all_tool.txt"
 
 
-JSON_TO_PY = {"string": "str", "integer": "int", "number": "float",
-              "boolean": "bool", "object": "dict", "null": "None"}
+JSON_TO_PY: Dict[Any, str] = {
+    "string": "str", "integer": "int", "number": "float",
+    "boolean": "bool", "object": "dict", "null": "None"
+}
 
 
 def schema_type_to_str(schema: Dict) -> str:
+    """Convert the JSON schema type of a parameter to a Python type name.
+
+    Type unions become "a | b", arrays become "list[...]" and unknown
+    types become "Any".
+
+    Args:
+        schema: JSON schema of the parameter.
+    """
     kind = schema.get("type")
     if isinstance(kind, list):
         return " | ".join(schema_type_to_str({**schema, "type": k})
@@ -26,6 +37,11 @@ def schema_type_to_str(schema: Dict) -> str:
 
 
 def format_prototype(spec: ToolSpec) -> str:
+    """Return the Python-like prototype of a tool, e.g. "add(a: int)".
+
+    Optional parameters get their default value, or "..." if the schema
+    gives none.
+    """
     props = spec.input_schema.get("properties", {})
     required = spec.input_schema.get("required", [])
     params = []
@@ -41,6 +57,15 @@ def format_prototype(spec: ToolSpec) -> str:
 
 
 def format_tools(tools: Dict[str, ToolSpec], max_full: int = 3) -> str:
+    """Describe the tools for the manual.
+
+    The first max_full tools are shown with their description, the
+    others only with their prototype.
+
+    Args:
+        tools: Tools indexed by name.
+        max_full: Number of tools shown with their description.
+    """
     specs = list(tools.values())
     blocks = []
     for spec in specs[:max_full]:
@@ -55,6 +80,11 @@ def format_tools(tools: Dict[str, ToolSpec], max_full: int = 3) -> str:
 
 
 def format_imports(patterns: List[str]) -> str:
+    """Return the authorized imports as a readable comma separated list.
+
+    A module allowed both as "name" and "name.*" is shown once as
+    "name (and its sub-modules)".
+    """
     wildcards = {p[:-2] for p in patterns if p.endswith(".*")}
     names = [p for p in patterns if not p.endswith(".*")]
     parts = [f"{n} (and its sub-modules)" if n in wildcards else n
@@ -64,6 +94,7 @@ def format_imports(patterns: List[str]) -> str:
 
 
 def format_tool_help_line(tools: Dict[str, ToolSpec]) -> str:
+    """Return the manual line explaining tool_help(), empty if no tools."""
     if not tools:
         return ""
     example = ", ".join(f'"{name}"' for name in list(tools)[:2])
@@ -75,6 +106,7 @@ def format_tool_help_line(tools: Dict[str, ToolSpec]) -> str:
 
 
 def all_tools_doc(tools: Dict[str, ToolSpec]) -> str:
+    """Return the full documentation of every tool, separated by lines."""
     result = []
     sep = "\n\n" + ("*" * 50) + "\n\n"
     for _, spec in tools.items():
@@ -82,12 +114,23 @@ def all_tools_doc(tools: Dict[str, ToolSpec]) -> str:
     return sep.join(result)
 
 
-def render_manual(**value: str) -> str:
+def render_manual(**value: object) -> str:
+    """Fill the manual template with the given values.
+
+    Raises:
+        KeyError: If a placeholder of the template has no value.
+    """
     template = Template(TEMPLATE_PATH.read_text(encoding="utf-8"))
     return template.substitute(value).strip()
 
 
 def build_manual(sand_conf: SandboxConfig, tools: Dict[str, ToolSpec]) -> str:
+    """Build the sandbox manual from the configuration and the tools.
+
+    Args:
+        sand_conf: Sandbox configuration (limits, imports, directories).
+        tools: MCP tools indexed by name.
+    """
     return render_manual(
         time_limit=sand_conf.max_execution_time_seconds,
         memory_limit=sand_conf.max_memory_mb,
@@ -132,9 +175,21 @@ def format_tool_doc(spec: ToolSpec) -> str:
 
 
 def make_tool_help(tools: Dict[str, ToolSpec]) -> Callable[..., Any]:
+    """Build the tool_help() function exposed in the sandbox namespace.
+
+    Args:
+        tools: MCP tools indexed by name.
+    """
     example = list(tools)[:2]
 
     def tool_help(tools_name: List[str]) -> str:
+        """Return the full documentation of the given tools.
+
+        Unknown names get a message listing the available tools.
+
+        Raises:
+            TypeError: If tools_name is not a list of strings.
+        """
         if not isinstance(tools_name, (list, tuple)):
             raise TypeError(
                 "tool_help() takes a list of tool names, for example "

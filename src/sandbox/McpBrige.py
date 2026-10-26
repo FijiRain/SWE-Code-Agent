@@ -1,6 +1,6 @@
 """Synchronous bridge to the asynchronous MCP client."""
 from .McpClient import McpClient, ToolSpec
-from typing import Dict, Any
+from typing import Dict, Any, Coroutine
 import asyncio
 import threading
 import concurrent.futures
@@ -88,7 +88,7 @@ class McpBridge:
         await self._stop.wait()
         await self._client.close()
 
-    def _run(self, coro, timeout: float) -> Any:
+    def _run(self, coro: Coroutine[Any, Any, Any], timeout: float) -> Any:
         """Run a coroutine in the event loop and wait for its result.
 
         Args:

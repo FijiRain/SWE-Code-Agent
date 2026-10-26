@@ -157,7 +157,7 @@ def make_tools_wrapper(spec: ToolSpec, conn: Connection) -> Callable[..., Any]:
     names = list(spec.input_schema.get("properties", {}))
     required = spec.input_schema.get("required", [])
 
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> str:
         """Call the MCP tool through the main process.
 
         Raises:

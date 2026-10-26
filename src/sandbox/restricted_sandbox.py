@@ -102,7 +102,7 @@ def make_open(allowed_dir: List[str]) -> Callable[..., Any]:
     Args:
         allowed_dir: Directories in which files can be opened.
     """
-    def restricted_open(file, *args, **kwargs):
+    def restricted_open(file: Any, *args: Any, **kwargs: Any) -> Any:
         """Open a file, raise PermissionError if it is not allowed."""
         if not isinstance(file, (str, bytes, os.PathLike)):
             raise PermissionError("open() only accepts file paths")
@@ -176,14 +176,14 @@ def restricted_conn() -> None:
     Socket creation and name resolution functions of the socket module
     are replaced by functions that raise PermissionError.
     """
-    def refuse(*args, **kwargs) -> None:
+    def refuse(*args: Any, **kwargs: Any) -> None:
         """Raise PermissionError for any network access."""
         raise PermissionError("Network access is disabled in the sandbox")
 
     class BlockedSocket(socket.socket):
         """Socket class that cannot be instantiated."""
 
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
             """Refuse the creation of the socket."""
             refuse()
 
