@@ -69,7 +69,8 @@ class Orchestrator:
                 start_time = time.perf_counter()
                 response = client.chat.completions.create(
                     model=self.model,
-                    messages=self.context
+                    messages=self.context,
+                    stop=["Observation:", "Observation\n"]
                 )
                 end_time = time.perf_counter()
                 self.step_time = (end_time - start_time) * 1000
@@ -77,7 +78,7 @@ class Orchestrator:
                     self.step_input_tokens = response.usage.prompt_tokens
                     self.step_output_tokens = response.usage.completion_tokens
 
-                return str(response.choices[0].message.content)
+                return response.choices[0].message.content or ""
 
         except APIStatusError as e:
             status = e.status_code
@@ -169,8 +170,8 @@ class Orchestrator:
                 break
             self.context.append({"role": "assistant", "content": answer})
             sandbox_input = extract_code(answer)
-            # self.sandbox.execute(sandbox_input)
-            # on recoit la rep de la sandbox : self.context.append({"role": "user", "content": f"Observation:\n{sandbox_output}"}).
+            # sandbox_output = self.sandbox.execute(sandbox_input)
+            # self.context.append({"role": "user", "content": f"Observation:\n{sandbox_output}"}).
             # resumer l'historique ??? a laide
 
             step = StepMetrics(
@@ -199,7 +200,8 @@ class Orchestrator:
                                          solved=solved)
             if stop:
                 break
-            # Au tour suivant, call_api() renvoie automatiquement tout l'historique mis à jour
+        '''#_#_#_# AGENT LOOP END #_#_#_#'''
+
         total_time = time.time() - start_time
         return SolutionOutput(task_id=id_bench,
                               benchmark=benchmark_type,
