@@ -69,12 +69,18 @@ class SandboxConfig(BaseModel):
             "EncodingWarning", "ZeroDivisionError", "OverflowError",
         ]
     )
+    not_authorized_builtins: List[str] = Field(
+        default_factory=lambda: [
+            "eval", "exec", "compile", "getattr",
+            "setattr", "globals", "input", "exit"
+        ]
+    )
     sandbox_name: str = Field(default="__sandbox__",
                               description="global name space")
     max_execution_time_seconds: int = 30
     max_memory_mb: int = 512
-    max_len_output: int = 100
-    max_len_tool_output: int = 30000
+    max_len_output: int = 3000
+    max_len_tool_output: int = 3000
 
 
 def load_config(path_sandbox_config: str):

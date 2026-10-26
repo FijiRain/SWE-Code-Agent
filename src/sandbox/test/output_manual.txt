@@ -1,0 +1,88 @@
+## Sandbox
+Your code runs in a persistent Python environment: variables, functions and
+imports stay available from one block to the next. You only see what you print.
+- Time limit: 30 s per block (time spent inside tools is not counted). On
+  timeout the environment restarts and all variables are lost.
+- Memory limit: 512 MB.
+- Output: stdout is cut after 3000 characters, tool results after 3000,
+  with an "[output truncated ...]" notice.
+- Imports: math (and its sub-modules), collections (and its sub-modules), itertools, re, json, typing (and its sub-modules), functools, operator, heapq, bisect, copy, string, random, datetime (and its sub-modules), array, cmath Others raise ImportError.
+- Files: open() works only inside /testbed, /tmp/agent (absolute paths).
+  No network access.
+- Not available: eval, exec, compile, getattr, setattr, globals, input, exit.
+
+## Finishing
+Call final_answer(value) when you are done (value is converted to a string).
+Call it on its own, never inside a try/except.
+
+## Tools
+Call them like normal Python functions (positional or keyword arguments).
+They always return a string. A failing tool raises an exception, wrong
+arguments raise TypeError.
+
+### Tools List:
+
+add(a: int, b: int)
+
+Add two integers.
+
+Parameters:
+- a (int, required)
+- b (int, required)
+
+**************************************************
+
+add_tree_nb(a: int, b: int, c: int)
+
+Add three integers.
+
+Parameters:
+- a (int, required)
+- b (int, required)
+- c (int, required)
+
+**************************************************
+
+echo(text: str)
+
+Return the given text unchanged.
+
+Parameters:
+- text (str, required)
+
+**************************************************
+
+run_tests(code: str, test_list: list[str])
+
+Run a candidate solution against the given test assertions.
+
+Returns a JSON string with a boolean 'success' and an 'output' field.
+(Test server only: it runs the code with exec, without any sandbox.)
+
+Parameters:
+- code (str, required)
+- test_list (list[str], required)
+
+**************************************************
+
+big_output(size: int)
+
+Return a string of 'size' characters (to test output truncation).
+
+Parameters:
+- size (int, required)
+
+**************************************************
+
+slow(seconds: float)
+
+Wait for 'seconds' seconds (to test that tool time is not timed out).
+
+Parameters:
+- seconds (float, required)
+
+**************************************************
+
+fail()
+
+Always raise an error (to test error handling).

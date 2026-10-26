@@ -11,6 +11,7 @@ from .wrapper_tools import (
     WorkerToolMessageIntput,
     make_tools_wrapper
 )
+from .manual_manager import build_manual, make_tool_help
 
 from typing import Dict, List
 from contextlib import redirect_stdout
@@ -76,6 +77,8 @@ def code_worker_loop(
         if not spec.name.isidentifier() or keyword.iskeyword(spec.name):
             continue
         namespace[spec.name] = make_tools_wrapper(spec, conn)
+
+    namespace["tool_help"] = make_tool_help(tools)
 
     state_final_answer: Dict = {}
     state_final_answer["answer"] = None
@@ -300,7 +303,7 @@ class Sandbox:
 
     def get_manual(self) -> str:
         """Return the sandbox manual"""
-        ...
+        return build_manual(self.__config, self._tools_list)
 
     def _stop_worker(self) -> None:
         """Ask the worker to stop, kill it if needed and close the pipe."""
