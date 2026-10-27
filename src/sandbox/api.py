@@ -92,7 +92,8 @@ def code_worker_loop(
             continue
         namespace[spec.name] = make_tools_wrapper(spec, conn)
 
-    namespace["tool_help"] = make_tool_help(tools)
+    if tools:
+        namespace["tool_help"] = make_tool_help(tools)
 
     state_final_answer: Dict = {}
     state_final_answer["answer"] = None
@@ -153,7 +154,7 @@ class Sandbox:
     """
 
     def __init__(self,
-                 mcp_command: str,
+                 mcp_command: str | None = None,
                  sandbox_config: SandboxConfig | None = None,
                  echo: bool = False
                  ) -> None:
@@ -170,18 +171,21 @@ class Sandbox:
         self._echo = echo
         self.__config = sandbox_config or SandboxConfig()
         self._tools_list: Dict[str, ToolSpec] = {}
+        self._mcp_bridge: McpBridge | None = None
 
-        self._mcp_bridge = McpBridge(mcp_command)
-        try:
-            self._mcp_bridge.connect()
-            self._tools_list = self._mcp_bridge.get_tools_list()
-        except BaseException:
-            self._mcp_bridge.close()
-            raise
+        if mcp_command is not None:
+            self._mcp_bridge = McpBridge(mcp_command)
+            try:
+                self._mcp_bridge.connect()
+                self._tools_list = self._mcp_bridge.get_tools_list()
+            except BaseException:
+                self._mcp_bridge.close()
+                raise
         try:
             self._start_work_process()
         except BaseException:
-            self._mcp_bridge.close()
+            if self._mcp_bridge is not None:
+                self._mcp_bridge.close()
             raise
 
     def _start_work_process(self) -> None:
@@ -257,6 +261,10 @@ class Sandbox:
                     start_time_tool = time.monotonic()
                     message_intput = WorkerToolMessageIntput()
                     try:
+                        if self._mcp_bridge is None:
+                            raise RuntimeError(
+                                "No MCP server connected"
+                            )
                         message_intput.output = self._mcp_bridge.call_tool(
                             payload.name,
                             payload.args
@@ -338,4 +346,11 @@ class Sandbox:
     def close(self) -> None:
         """Stop the worker process and close the MCP connection."""
         self._stop_worker()
-        self._mcp_bridge.close()
+        if self._mcp_bridge is not None:
+            self._mcp_bridge.close()
+
+    def __enter__(self) -> "Sandbox":
+        return self
+
+    def __exit__(self, *exc_info: Any) -> None:
+        self.close()

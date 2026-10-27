@@ -1,10 +1,12 @@
 """Asynchronous MCP client that talks to a server started over stdio."""
-import shlex
 from mcp import ClientSession, StdioServerParameters
+from mcp.client.streamable_http import streamable_http_client
 from mcp.client.stdio import stdio_client
 from typing import Dict, List
 from contextlib import AsyncExitStack
 from pydantic import BaseModel, Field
+from urllib.parse import urlparse
+import shlex
 import asyncio
 import os
 import sys
@@ -83,18 +85,57 @@ class McpClient:
             McpConnectionError: If the command is invalid or not runnable.
             ValueError: If the command is empty.
         """
-        try:
-            parts = shlex.split(command)
-        except ValueError as e:
-            raise McpConnectionError(f"Invalid MCP server command: {e}") from e
-        if not parts:
-            raise ValueError("Empty MCP Server command")
-        check_server_command(parts)
-        self._params = StdioServerParameters(
-            command=parts[0],
-            args=parts[1:]
-        )
+        self._url: str | None = None
+        kind = self.server_kind(command)
+        if kind == "http":
+            self._url = command
+        else:
+            try:
+                parts = shlex.split(command)
+            except ValueError as e:
+                raise McpConnectionError(
+                    f"Invalid MCP server command: {e}") from e
+            if not parts:
+                raise ValueError("Empty MCP Server command")
+            check_server_command(parts)
+            self._params = StdioServerParameters(
+                command=parts[0],
+                args=parts[1:]
+            )
+        self._stack = AsyncExitStack()
 
+    @staticmethod
+    def server_kind(command: str) -> str:
+        if "://" not in command:
+            return "stdio"
+        parsed = urlparse(command)
+        if parsed.scheme not in ("http", "https"):
+            raise McpConnectionError(
+                f"Unsupported URL scheme '{parsed.scheme}' in '{command}': "
+                "only http and https are supported"
+            )
+        if not parsed.hostname:
+            raise McpConnectionError(
+                f"Invalid MCP server URL (no host): '{command}'"
+            )
+        return "http"
+
+    async def check_http_reachable(self) -> None:
+        parse = urlparse(self._url)
+        port = parse.port or (443 if parse.schema == "https" else 80)
+        try:
+            _, writer = await asyncio.wait_for(
+                asyncio.open_connection(parse.hostname, port),
+                timeout=3
+            )
+        except (OSError, asyncio.TimeoutError) as e:
+            raise McpConnectionError(
+                f"Nothing answers at {parse.hostname}:{port}: "
+                "is the MCP server running?"
+            ) from e
+        writer.close()
+        await writer.wait_closed()
+    
     async def connect(self) -> None:
         """Start the server and initialize the MCP session.
 
@@ -102,11 +143,16 @@ class McpClient:
             McpConnectionError: If the server cannot be started or does not
                 finish initialization within 10 seconds.
         """
-        self._stack = AsyncExitStack()
+        if self._url:
+            await self.check_http_reachable()
+
         try:
-            read, write = await self._stack.enter_async_context(
-                stdio_client(self._params)
-                )
+            if self._url:
+                transport = streamable_http_client(self._url)
+            else:
+                transport = stdio_client(self._params)
+            streams = await self._stack.enter_async_context(transport)
+            read, write = streams[0], streams[1]
             self._session = await self._stack.enter_async_context(
                 ClientSession(read, write)
                 )

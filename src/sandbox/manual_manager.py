@@ -107,6 +107,8 @@ def format_tool_help_line(tools: Dict[str, ToolSpec]) -> str:
 
 def all_tools_doc(tools: Dict[str, ToolSpec]) -> str:
     """Return the full documentation of every tool, separated by lines."""
+    if not tools:
+        return "No tools found"
     result = []
     sep = "\n\n" + ("*" * 50) + "\n\n"
     for _, spec in tools.items():

@@ -1,11 +1,10 @@
 from .api import Sandbox
-from .SandboxConfig import SandboxConfig
 from .ExecutionResult import ExecutionResult
 
 from typing import List
 import codeop
 import sys
-import readline
+import readline # noqa: F401
 
 
 USE_COLOR = sys.stdout.isatty()
@@ -35,20 +34,18 @@ def display(result: ExecutionResult) -> None:
         print(f"final_answer: {result.final_answer}")
 
 
-def repl(
-        mcp_command: str,
-        sandbox_config: SandboxConfig | None = None,
-        ) -> None:
+def repl(sandbox: Sandbox) -> None:
     buffer: List[str] = []
-    sand = Sandbox(mcp_command, sandbox_config, True)
     while True:
         try:
             line = input("... " if buffer else ">>> ")
             if not line.strip():
                 line = ""
         except EOFError:
+            print("KeyboardInterrupt")
             break
         except KeyboardInterrupt:
+            print("KeyboardInterrupt")
             buffer.clear()
             continue
         if not buffer and line.strip() in ("exit", "exit()"):
@@ -60,6 +57,9 @@ def repl(
                 buffer.clear()
             continue
         buffer.clear()
-        result = sand.execute(source)
-        display(result)
-    sand.close()
+        try:
+            display(sandbox.execute(source))
+        except KeyboardInterrupt:
+            print("\nInterrupted, sandbox closed.")
+            return
+    sandbox.close()
