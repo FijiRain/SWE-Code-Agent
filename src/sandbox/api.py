@@ -21,6 +21,7 @@ import time
 import signal
 import concurrent.futures
 import keyword
+import ast
 
 
 STARTUP_TIMEOUT = 10
@@ -48,10 +49,23 @@ class PipeWriter:
         pass
 
 
+def run_code(code: str, namespace: Dict, echo: bool) -> None:
+    if not echo:
+        exec(code, namespace)
+        return
+    for node in ast.parse(code, "<string>", "exec").body:
+        exec(
+            compile(
+                ast.Interactive(body=[node]), "<string>", "single"),
+            namespace
+        )
+
+
 def code_worker_loop(
         conn: Connection,
         config: SandboxConfig,
-        tools: Dict[str, ToolSpec]
+        tools: Dict[str, ToolSpec],
+        echo: bool
         ) -> None:
     """Run the worker process loop that executes code snippets.
 
@@ -103,7 +117,8 @@ def code_worker_loop(
         exec_res = ExecutionResult()
         try:
             with redirect_stdout(buffer):
-                exec(code, namespace)
+                run_code(code, namespace, echo)
+                # exec(code, namespace)
         except SystemExit:
             exec_res.error = ("SystemExit: exit()/sys.exit() are not allowed "
                               "in the sandbox. "
@@ -140,6 +155,7 @@ class Sandbox:
     def __init__(self,
                  mcp_command: str,
                  sandbox_config: SandboxConfig | None = None,
+                 echo: bool = False
                  ) -> None:
         """Connect to the MCP server and start the worker process.
 
@@ -151,6 +167,7 @@ class Sandbox:
             McpConnectionError: If the MCP server cannot be reached.
             RuntimeError: If the worker process fails to start.
         """
+        self._echo = echo
         self.__config = sandbox_config or SandboxConfig()
         self._tools_list: Dict[str, ToolSpec] = {}
 
@@ -181,7 +198,8 @@ class Sandbox:
             args=(
                 child_con,
                 self.__config,
-                self._tools_list
+                self._tools_list,
+                self._echo
             ),
             daemon=True
         )
