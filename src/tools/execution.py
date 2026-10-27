@@ -6,6 +6,16 @@ import json
 
 
 def run_command(command: str, workdir: str = ".") -> str:
+    """Execute a shell command inside the testbed working directory.
+
+    Args:
+        command: Shell command string to execute.
+        workdir: Working directory relative to the testbed root.
+
+    Returns:
+        Formatted string containing exit code, STDOUT, and STDERR, or an
+        error message if execution fails or times out.
+    """
     timeout = 60
     try:
         working_dir = resolve_testbed_path(workdir)
@@ -30,6 +40,12 @@ def run_command(command: str, workdir: str = ".") -> str:
 
 
 def get_patch() -> str:
+    """Generate a unified git diff of changes in the testbed repository.
+
+    Returns:
+        The git diff output as a string, or an error message if git diff
+        fails or times out.
+    """
     repo = get_testbed_root()
     timeout = 60
     command = ["git", "-c", "core.fileMode=false", "diff"]
@@ -47,6 +63,12 @@ def get_patch() -> str:
 
 
 def run_swebench_tests() -> str:
+    """Run the SWE-bench evaluation script inside the testbed repository.
+
+    Returns:
+        Captured STDOUT and STDERR from the evaluation script (truncated if
+        exceeding 15000 characters), or an error message string.
+    """
     repo = get_testbed_root()
     timeout = 300
     max_size = 15000
@@ -77,6 +99,15 @@ def run_swebench_tests() -> str:
 
 
 def run_mbpp_tests(code: str, test_list: list[str]) -> str:
+    """Execute candidate Python code against a list of MBPP test assertions.
+
+    Args:
+        code: Candidate Python source code to test.
+        test_list: List of assertion statements to run against the code.
+
+    Returns:
+        A JSON-formatted string with keys 'success' (bool) and 'output' (str).
+    """
     timeout = 30
 
     script_lines = [code, "\n"]
@@ -98,3 +129,5 @@ def run_mbpp_tests(code: str, test_list: list[str]) -> str:
     else:
         success = False
         output = process.stderr.strip()
+
+    return json.dumps({"success": success, "output": output})

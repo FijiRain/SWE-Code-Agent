@@ -5,7 +5,15 @@ import ast
 
 
 def get_clean_files(root: Path, pattern: str = "*.py") -> list[Path]:
-    """Finds all non-noise files matching pattern, sorted."""
+    """Find all non-hidden, non-cache files matching pattern under root.
+
+    Args:
+        root: Base directory Path to search recursively.
+        pattern: Glob pattern to match filenames against.
+
+    Returns:
+        A sorted list of matching file Paths.
+    """
     files = []
     for p in root.rglob(pattern):
         if not p.is_file():
@@ -18,6 +26,16 @@ def get_clean_files(root: Path, pattern: str = "*.py") -> list[Path]:
 
 
 def search_code(pattern: str, file_pattern: str = "*") -> str:
+    """Search files in the testbed for lines matching a regular expression.
+
+    Args:
+        pattern: Regular expression pattern to search for.
+        file_pattern: Glob pattern to filter which files are searched.
+
+    Returns:
+        Matching lines formatted as '<filepath>:<line_num> <line>', or a
+        message if no matches are found or the regex is invalid.
+    """
     max_match = 100
 
     testbed_root = get_testbed_root()
@@ -49,6 +67,15 @@ def search_code(pattern: str, file_pattern: str = "*") -> str:
 
 
 def search_function_or_class_definition_in_code(name: str) -> str:
+    """Find function, async function, or class definitions by name using AST.
+
+    Args:
+        name: Exact identifier of the function or class to locate.
+
+    Returns:
+        Definition locations formatted as '<filepath>:<line_num> <line>',
+        or a message if no definition is found.
+    """
     testbed_root = get_testbed_root()
     files = get_clean_files(testbed_root, "*.py")
     result = []
@@ -77,6 +104,17 @@ def search_function_or_class_definition_in_code(name: str) -> str:
 
 
 def find_references(name: str, filepath: str = "", line: int = -1) -> str:
+    """Find word-boundary references to a symbol across Python files.
+
+    Args:
+        name: Symbol name to search for.
+        filepath: Optional specific file path to restrict the search to.
+        line: Optional line number in filepath to exclude from results.
+
+    Returns:
+        Reference locations formatted as '<filepath>:<line_num> <line>',
+        or an error/status message string.
+    """
     max_match = 100
 
     if not name or not name.strip():

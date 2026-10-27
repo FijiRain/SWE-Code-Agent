@@ -2,6 +2,17 @@ from src.tools.path_utils import resolve_testbed_path, get_testbed_root
 
 
 def read_file(filepath: str, start_line: int = 1, end_line: int = -1) -> str:
+    """Read lines from a file within the testbed with 1-indexed line numbers.
+
+    Args:
+        filepath: Path to the file relative to the testbed root.
+        start_line: First line number to read (1-indexed, inclusive).
+        end_line: Last line number to read (inclusive), or -1 for end of file.
+
+    Returns:
+        Numbered file lines formatted as '<line_num>: <line>', or an error
+        message string.
+    """
     try:
         path = resolve_testbed_path(filepath)
     except ValueError as e:
@@ -40,6 +51,16 @@ def read_file(filepath: str, start_line: int = 1, end_line: int = -1) -> str:
 
 
 def edit_file(filepath: str, old_str: str, new_str: str) -> str:
+    """Replace a unique occurrence of old_str with new_str in a file.
+
+    Args:
+        filepath: Path to the file relative to the testbed root.
+        old_str: Exact target substring to replace (must occur once).
+        new_str: Replacement substring.
+
+    Returns:
+        A confirmation message upon success, or an error message string.
+    """
     try:
         path = resolve_testbed_path(filepath)
     except ValueError as e:
@@ -69,6 +90,16 @@ def edit_file(filepath: str, old_str: str, new_str: str) -> str:
 
 
 def list_files(directory: str = ".", pattern: str = "*") -> str:
+    """List non-hidden files in a directory matching a glob pattern.
+
+    Args:
+        directory: Directory path relative to the testbed root.
+        pattern: Glob pattern to filter file names.
+
+    Returns:
+        Newline-separated relative file paths (up to 100 entries), or an
+        error/status message string.
+    """
     try:
         path = resolve_testbed_path(directory)
     except ValueError as e:
