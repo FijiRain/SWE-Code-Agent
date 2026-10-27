@@ -1,33 +1,17 @@
-"""Asynchronous MCP client that talks to a server started over stdio."""
+"""Asynchronous MCP client that talks to a server over stdio or HTTP."""
+from ..models.ToolSpec import ToolSpec
+
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.streamable_http import streamable_http_client
 from mcp.client.stdio import stdio_client
 from typing import Dict, List
 from contextlib import AsyncExitStack
-from pydantic import BaseModel, Field
 from urllib.parse import urlparse
 import shlex
 import asyncio
 import os
 import sys
 import shutil
-
-
-class ToolSpec(BaseModel):
-    """Description of one tool exposed by the MCP server."""
-
-    name: str = Field(
-        ...,
-        description="name of tool"
-    )
-    description: str = Field(
-        default="",
-        description="Description of tool"
-    )
-    input_schema: dict = Field(
-        default_factory=dict,
-        description="Argument of tool"
-    )
 
 
 class McpToolError(Exception):
@@ -73,7 +57,7 @@ def check_server_command(parts: List[str]) -> None:
 
 
 class McpClient:
-    """Client of an MCP server launched as a subprocess over stdio."""
+    """Client of an MCP server, launched over stdio or reached by HTTP."""
 
     def __init__(self, command: str):
         """Parse and check the command that starts the MCP server.
@@ -106,6 +90,11 @@ class McpClient:
 
     @staticmethod
     def server_kind(command: str) -> str:
+        """Return "http" if the command is an URL, "stdio" otherwise.
+
+        Raises:
+            McpConnectionError: If the URL is not http(s) or has no host.
+        """
         if "://" not in command:
             return "stdio"
         parsed = urlparse(command)
@@ -121,8 +110,14 @@ class McpClient:
         return "http"
 
     async def check_http_reachable(self) -> None:
-        parse = urlparse(self._url)
-        port = parse.port or (443 if parse.schema == "https" else 80)
+        """Check that something listens on the host and port of the URL.
+
+        Raises:
+            McpConnectionError: If no connection can be opened within
+                3 seconds.
+        """
+        parse = urlparse(self._url or "")
+        port = parse.port or (443 if parse.scheme == "https" else 80)
         try:
             _, writer = await asyncio.wait_for(
                 asyncio.open_connection(parse.hostname, port),
@@ -135,7 +130,7 @@ class McpClient:
             ) from e
         writer.close()
         await writer.wait_closed()
-    
+
     async def connect(self) -> None:
         """Start the server and initialize the MCP session.
 

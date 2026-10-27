@@ -1,18 +1,18 @@
+"""Interactive read-eval-print loop running code in the sandbox."""
 from .api import Sandbox
-from .ExecutionResult import ExecutionResult
+from ..models.ExecutionResult import ExecutionResult
+from .config import RESET, RED
 
 from typing import List
 import codeop
-import sys
-import readline # noqa F401
-
-
-USE_COLOR = sys.stdout.isatty()
-RED = "\033[1;31m" if USE_COLOR else ""
-RESET = "\033[0m" if USE_COLOR else ""
+import readline  # noqa: F401
 
 
 def is_complet(source: str) -> bool:
+    """Return True if the source can be executed without more lines.
+
+    Invalid source counts as complete, so that its error is shown.
+    """
     try:
         return codeop.compile_command(source, "<repl>", "single") is not None
     except (SyntaxError, ValueError, OverflowError):
@@ -35,6 +35,14 @@ def display(result: ExecutionResult) -> None:
 
 
 def repl(sandbox: Sandbox) -> None:
+    """Read code from the terminal and execute it in the sandbox.
+
+    Lines are buffered until the block is complete. The loop stops on
+    "exit", "exit()" or EOF, and the sandbox is then closed.
+
+    Args:
+        sandbox: Sandbox in which the code is executed.
+    """
     buffer: List[str] = []
     while True:
         try:

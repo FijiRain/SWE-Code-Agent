@@ -1,5 +1,5 @@
 """Wrappers that expose MCP tools as Python functions in the worker."""
-from .McpClient import ToolSpec
+from ..models.ToolSpec import ToolSpec
 from .McpClient import McpToolError
 
 from typing import Callable, Tuple, Dict, List, Any

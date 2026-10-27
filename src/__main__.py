@@ -1,6 +1,6 @@
 """Entry point of the project: run the sandbox test script."""
 # from .sandbox.test.test_sandbox_full_connetion import main
-from .sandbox.cli import sandbox_cli
+from .sandbox.cli import main as sandbox_cli
 import sys
 
 
@@ -13,6 +13,7 @@ def test_manual() -> None:
 
 
 def main() -> int:
+    """Run the interactive sandbox and return its exit code."""
     return sandbox_cli()
 
 

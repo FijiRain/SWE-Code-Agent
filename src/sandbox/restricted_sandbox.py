@@ -1,5 +1,5 @@
 """Restrictions applied to the worker process of the sandbox."""
-from .SandboxConfig import SandboxConfig
+from ..models.SandboxConfig import SandboxConfig
 
 from types import ModuleType
 from typing import (Any, List, Callable,

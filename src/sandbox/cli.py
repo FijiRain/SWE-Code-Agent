@@ -1,13 +1,21 @@
-from .repl import repl, RED, RESET
+"""Command line entry point of the interactive sandbox."""
+from .config import RED, RESET
+from .repl import repl
 from .api import Sandbox
 from .McpClient import McpConnectionError
-from .SandboxConfig import load_config
+from ..models.SandboxConfig import load_config
 
 import argparse
 import sys
 
 
 def main() -> int:
+    """Parse the arguments, start the sandbox and run the REPL.
+
+    Returns:
+        The exit code: 0 on success, 1 if the configuration or the MCP
+        connection is invalid, 130 on KeyboardInterrupt.
+    """
     parser = argparse.ArgumentParser(
         description="Launche the intercative sandbox"
     )

@@ -1,20 +1,12 @@
 """Build the manual given to the LLM and the tool_help() function."""
-from .SandboxConfig import SandboxConfig
-from .McpClient import ToolSpec
+from ..models.SandboxConfig import SandboxConfig
+from ..models.ToolSpec import ToolSpec
+from .config import JSON_TO_PY, TEMPLATE_MANUAL_PATH
 
-from pathlib import Path
 from string import Template
 from typing import Dict, List, Callable, Any
 import inspect
 import textwrap
-
-TEMPLATE_PATH = Path(__file__).parent / "templates" / "manual_all_tool.txt"
-
-
-JSON_TO_PY: Dict[Any, str] = {
-    "string": "str", "integer": "int", "number": "float",
-    "boolean": "bool", "object": "dict", "null": "None"
-}
 
 
 def schema_type_to_str(schema: Dict) -> str:
@@ -122,7 +114,7 @@ def render_manual(**value: object) -> str:
     Raises:
         KeyError: If a placeholder of the template has no value.
     """
-    template = Template(TEMPLATE_PATH.read_text(encoding="utf-8"))
+    template = Template(TEMPLATE_MANUAL_PATH.read_text(encoding="utf-8"))
     return template.substitute(value).strip()
 
 

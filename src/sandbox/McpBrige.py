@@ -1,13 +1,15 @@
 """Synchronous bridge to the asynchronous MCP client."""
-from .McpClient import McpClient, ToolSpec
+from .McpClient import McpClient
+from ..models.ToolSpec import ToolSpec
+from .config import (
+    TIMEOUT_CALL_TOOL, TIMEOUT_CLIENT_CONN,
+    TIMEOUT_CLOSE
+)
+
 from typing import Dict, Any, Coroutine
 import asyncio
 import threading
 import concurrent.futures
-
-TIMEOUT_CALL_TOOL = 30
-TIMEOUT_CLIENT_CONN = 15
-TIMEOUT_CLOSE = 5
 
 
 class McpBridge:
