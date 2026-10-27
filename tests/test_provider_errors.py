@@ -4,7 +4,7 @@
 
 from dotenv import load_dotenv
 from unittest.mock import patch, MagicMock
-from src.orchestrator import Orchestrator
+from src.orchestration.orchestrator import Orchestrator
 from openai import (
     RateLimitError,
     InternalServerError,

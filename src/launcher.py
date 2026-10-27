@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from pydantic import ValidationError
 from src.models.input_data_models import MBPPTaskInput
-from src.orchestrator import Orchestrator
+from src.orchestration.orchestrator import Orchestrator
 
 load_dotenv()
 

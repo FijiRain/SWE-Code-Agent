@@ -9,11 +9,11 @@ from typing import Optional
 from .key_manager import KeyManager
 from .exception import (KeyQuotaError, ServerError,
                         FatalError, ProviderRequestError)
-from .models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
-from .models.output_data_models import SolutionOutput, StepMetrics
+from src.models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
+from src.models.output_data_models import SolutionOutput, StepMetrics
 from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
 from .py_extractor import extract_code
-from test_ExecutionResult import ExecutionResult  # TEMPORAIRE POUR TEST
+from tests.test_ExecutionResult import ExecutionResult, MockSandbox  # TEMPORAIRE POUR TEST
 
 
 @dataclass
@@ -38,7 +38,7 @@ class Orchestrator:
         self.provider = self.load_provider(provider_url)
         self.key_manager = KeyManager(self.provider)
 
-        self.sandbox = ...  # Anatole ici
+        self.sandbox = MockSandbox()  # Anatole ici JUSTE UN TEST
         self.sys_prompt = ""
         self.user_prompt = ""
         self.context: list[ChatCompletionMessageParam] = []

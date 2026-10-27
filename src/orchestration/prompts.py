@@ -1,6 +1,6 @@
 # flake8: noqa
 
-from .models.input_data_models import MBPPTaskInput
+from src.models.input_data_models import MBPPTaskInput
 
 FAKE_SANDBOX_MANUAL_MBPP = '''
 - run_tests(code: str, test_list: list[str]) -> dict:                                                                 
