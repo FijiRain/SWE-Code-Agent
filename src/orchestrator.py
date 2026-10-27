@@ -13,6 +13,7 @@ from .models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from .models.output_data_models import SolutionOutput, StepMetrics
 from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
 from .py_extractor import extract_code
+from ..test_ExecutionResult import ExecutionResult  # TEMPORAIRE POUR TEST
 
 
 @dataclass
@@ -155,7 +156,8 @@ class Orchestrator:
             benchmark_type = "swebench"
             id_bench = str(task.instance_id)
 
-        '''#_#_#_# AGENT LOOP #_#_#_#'''
+        # ouvrir la sandbox avec with ici ?
+        '''#_#_#_# AGENT LOOP START #_#_#_#'''
         solved = False
         start_time = time.time()
         current_iterations = 0
@@ -174,9 +176,16 @@ class Orchestrator:
                 sandbox_input = ""
                 sandbox_output = ("Error: No valid Python code block found. "
                                   "Wrap your code in ```python ... ```.")
-            sandbox_output = self.sandbox.execute(sandbox_input)
-            self.context.append({"role": "user", "content": f"Observation:\n{sandbox_output}"})
-            # resumer l'historique ??? a laide
+            else:
+                execution_res: ExecutionResult = self.sandbox.execute(sandbox_input)  # try/except pour la sandbox ??
+                if execution_res.final_answer is not None:
+                    solved = True
+                    solution = execution_res.final_answer
+                sandbox_output = self.sandbox_analysis(execution_res)
+
+            self.context.append({"role": "user",
+                                 "content": f"Observation:\n{sandbox_output}"})
+            # resumer l'historique pour SWE eventuellement
 
             step = StepMetrics(
                 step=current_iterations,
@@ -255,3 +264,28 @@ class Orchestrator:
             return True, "Execution timeout exceeded"
 
         return False, None
+
+    def sandbox_analysis(self, sandbox_output: ExecutionResult) -> str:
+        if sandbox_output.timed_out:
+            if sandbox_output.stdout:
+                return (f"Execution timed out (infinite loop/slow algorithm). "
+                        f"Current output:\n{sandbox_output.stdout}")
+            # if the execution timeout without stdout
+            return "Execution timed out (infinite loop/slow algorithm)."
+        if sandbox_output.error:
+            if sandbox_output.stdout:
+                return (f"Error:\n{sandbox_output.error}\n"
+                        f"Current output:\n{sandbox_output.stdout}")
+            # if the execution fails immediately without stdout
+            return f"Error:\n{sandbox_output.error}"
+        if sandbox_output.final_answer is not None:
+            return f"Final answer submitted:\n{sandbox_output.final_answer}"
+        if sandbox_output.truncated:
+            return (f"The output was truncated.\n"
+                    f"Current output:\n{sandbox_output.stdout}")
+        if sandbox_output.stdout:
+            return sandbox_output.stdout
+
+        # Cover the case when the LLM forget to write "print(result)"
+        return ("Code executed successfully with no output return. "
+                "Remember to use print() to see results.")
