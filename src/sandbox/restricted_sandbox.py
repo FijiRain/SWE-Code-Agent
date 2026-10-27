@@ -10,6 +10,7 @@ import builtins
 import os
 import resource
 import socket
+import sys
 
 
 def valid_module(module: ModuleType,
@@ -137,9 +138,19 @@ def build_builtins(config: SandboxConfig) -> Dict:
 
 
 def apply_memory_restricted(max_memory_mb: int) -> None:
-    """Cap the address space of the current process."""
-    limits = max_memory_mb * 1024 * 1024
-    resource.setrlimit(resource.RLIMIT_AS, (limits, limits))
+    """Cap the address space of the current process (enforced on Linux only).
+
+    If the system refuses (for example macOS), print a warning and go on
+    without a memory limit.
+    """
+    limit = max_memory_mb * 1024 * 1024
+    try:
+        _, hard = resource.getrlimit(resource.RLIMIT_AS)
+        if hard != resource.RLIM_INFINITY:
+            limit = min(limit, hard)
+        resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+    except (ValueError, OSError) as e:
+        print(f"Warning: memory limit not applied ({e})", file=sys.stderr)
 
 
 def truncke_output(output: str, max_len: int) -> Tuple[str, bool]:
