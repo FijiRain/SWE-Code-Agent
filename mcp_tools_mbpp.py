@@ -7,7 +7,7 @@ import sys
 # Initialize and register at module level so any test or client can import mcp
 # directly if needed (from mcp_tools_mbpp import mcp).
 mcp = FastMCP("mbpp_tools")
-mcp.tool()(run_tests)
+mcp.tool(name="run_tests")(run_tests)
 
 
 def main():
