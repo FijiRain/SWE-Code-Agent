@@ -13,7 +13,7 @@ from .models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from .models.output_data_models import SolutionOutput, StepMetrics
 from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
 from .py_extractor import extract_code
-from ..test_ExecutionResult import ExecutionResult  # TEMPORAIRE POUR TEST
+from test_ExecutionResult import ExecutionResult  # TEMPORAIRE POUR TEST
 
 
 @dataclass
@@ -156,7 +156,7 @@ class Orchestrator:
             benchmark_type = "swebench"
             id_bench = str(task.instance_id)
 
-        # ouvrir la sandbox avec with ici ?
+        # ouvrir la sandbox avec with ici ? + finally avec le close()
         '''#_#_#_# AGENT LOOP START #_#_#_#'''
         solved = False
         start_time = time.time()
