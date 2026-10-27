@@ -27,12 +27,12 @@ for tool in tools:
 
 
 def main():
-    """Parse command-line arguments and run the SWE-Bench MCP server.
+    """Parse command-line arguments and run the SWE-bench MCP server.
 
     Configures the transport protocol (stdio or SSE/HTTP) and network
     settings before starting the server.
     """
-    parser = argparse.ArgumentParser(description="SWE-Bench MCP Server")
+    parser = argparse.ArgumentParser(description="SWE-bench MCP Server")
     parser.add_argument(
             "--transport",
             choices=["stdio", "sse", "http"],
@@ -49,7 +49,7 @@ def main():
     if transport == "sse":
         mcp.settings.port = args.port
         mcp.settings.host = args.host
-        print("Starting SWE-Bench MCP Server on "
+        print("Starting SWE-bench MCP Server on "
               f"http://{args.host}:{args.port}/sse", file=sys.stderr)
 
     mcp.run(transport=transport)
