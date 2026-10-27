@@ -17,13 +17,13 @@ tools = [
     search_code,
     search_function_or_class_definition_in_code,
     find_references,
-    run_tests,
     get_patch,
     run_command,
 ]
 
 for tool in tools:
     mcp.tool()(tool)
+mcp.tool(name="run_tests")(run_tests)
 
 
 def main():
