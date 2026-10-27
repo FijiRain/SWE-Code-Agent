@@ -12,7 +12,7 @@ resolution-markers = [
 [[package]]
 name = "agent-smith"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "flake8" },
     { name = "mcp", extra = ["cli"] },

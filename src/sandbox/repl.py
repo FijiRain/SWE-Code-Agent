@@ -4,7 +4,7 @@ from .ExecutionResult import ExecutionResult
 from typing import List
 import codeop
 import sys
-import readline # noqa: F401
+import readline # noqa F401
 
 
 USE_COLOR = sys.stdout.isatty()
