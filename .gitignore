@@ -1,6 +1,12 @@
+# Enviroment
 .env
 .venv
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+
 .DS_Store
 **/.DS_Store
-__pycache__/
-*.pyc
+uv.lock

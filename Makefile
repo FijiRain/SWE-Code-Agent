@@ -50,7 +50,7 @@ lint:
 	@echo "$(BOLD)Verifying project source code:$(RESET)"
 
 	@echo "$(YELLOW)Running flake8...$(RESET)"
-	@$(PYTHON) -m flake8
+	@$(PYTHON) -m flake8 src
 	@echo "$(GREEN)No norm errors found$(RESET)"
 
 	@echo "\n$(YELLOW)Running mypy...$(RESET)"

@@ -1,0 +1,25 @@
+## Sandbox
+Your code runs in a persistent Python environment: variables, functions and
+imports stay available from one block to the next. You only see what you print.
+- Time limit: ${time_limit} s per block (time spent inside tools is not counted). On
+  timeout the environment restarts and all variables are lost.
+- Memory limit: ${memory_limit} MB.
+- Output: stdout is cut after ${charcter_limit_output} characters, tool results after ${charcater_limit_tool},
+  with an "[output truncated ...]" notice.
+- Imports: ${imports} Others raise ImportError.
+- Files: open() works only inside ${directories} (absolute paths).
+  No network access.
+- Not available: ${restricted_builtin}.
+
+## Finishing
+Call final_answer(value) when you are done (value is converted to a string).
+Call it on its own, never inside a try/except.
+
+## Tools
+Call them like normal Python functions (positional or keyword arguments).
+They always return a string. A failing tool raises an exception, wrong
+arguments raise TypeError.
+
+${tools}
+
+Full description of a tool: ${tool_help_line}
