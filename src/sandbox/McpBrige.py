@@ -20,12 +20,14 @@ class McpBridge:
     session is opened and closed in the same task.
     """
 
-    def __init__(self, command: str) -> None:
+    def __init__(self, command: str,
+                 tool_timeout: float = TIMEOUT_CALL_TOOL) -> None:
         """Create the client and start the event loop thread.
 
         Args:
             command: Command line that starts the MCP server.
         """
+        self._tool_timeout = tool_timeout
         self._client = McpClient(command)
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(
@@ -118,7 +120,7 @@ class McpBridge:
         """Call an MCP tool and return its text result."""
         return self._run(
             self._client.call_tool(func_name, args),
-            TIMEOUT_CALL_TOOL
+            self._tool_timeout
         )
 
     def get_tools_list(self) -> Dict[str, ToolSpec] | Any:

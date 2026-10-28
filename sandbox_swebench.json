@@ -1,0 +1,6 @@
+{
+    "allowed_directories": ["/tmp/agent"],
+    "max_len_output": 4000,
+    "max_len_tool_output": 1000000,
+    "max_tool_time_seconds": 600
+}

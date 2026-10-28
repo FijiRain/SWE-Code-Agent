@@ -14,7 +14,10 @@ def test_manual() -> None:
 
 def main() -> int:
     """Run the interactive sandbox and return its exit code."""
-    return sandbox_cli()
+    from .sandbox.test.sandbox_full_test import main
+    main()
+    # return sandbox_cli()
+    return 0
 
 
 if __name__ == "__main__":

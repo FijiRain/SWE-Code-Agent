@@ -1,10 +1,13 @@
 """Wrappers that expose MCP tools as Python functions in the worker."""
 from ..models.ToolSpec import ToolSpec
 from .McpClient import McpToolError
+from .protocol import (
+    ToolCallMsg, ToolResultMsg,
+    recv_main_message, send_message
+    )
 
 from typing import Callable, Tuple, Dict, List, Any
 from multiprocessing.connection import Connection
-from pydantic import BaseModel, Field
 
 TYPES: Dict[str, type | Tuple[type, ...]] = {
     "integer": int,
@@ -15,23 +18,6 @@ TYPES: Dict[str, type | Tuple[type, ...]] = {
     "object": dict,
     "null": type(None),
 }
-
-
-class WorkerToolMessageOutput(BaseModel):
-    """Tool call request sent by the worker to the main process."""
-
-    name: str = Field(default="", description="name of tool")
-    args: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="argument for tool"
-    )
-
-
-class WorkerToolMessageIntput(BaseModel):
-    """Tool call result sent by the main process to the worker."""
-
-    error: bool = Field(default=False, description="If error ar occured")
-    output: str = Field(default="", description="output of calling tool")
 
 
 def signature(spec: ToolSpec) -> str:
@@ -166,19 +152,22 @@ def make_tools_wrapper(spec: ToolSpec, conn: Connection) -> Callable[..., Any]:
             RuntimeError: If the main process sends an unexpected message.
         """
         tool_args = verif_params(args, kwargs, names, required, spec)
-        ouptut = WorkerToolMessageOutput(
-            name=spec.name,
-            args=tool_args
-        )
-        conn.send(("tool_call", ouptut))
-        kind, response = conn.recv()
-        if kind != "tool_result" or not isinstance(
-                                        response, WorkerToolMessageIntput):
-            raise RuntimeError("Unexpected message from the sandbox: "
-                               f"{kind!r}")
-        if response.error:
-            raise McpToolError(response.output)
-        return response.output
+        try:
+            send_message(conn, ToolCallMsg(name=spec.name, args=tool_args))
+        except (ValueError, TypeError) as e:
+            raise TypeError(
+                f"{spec.name}(): arguments must be JSON-serializable "
+                "(str, int, float, bool, None, list, dict)"
+            ) from e
+        message = recv_main_message(conn)
+        if not isinstance(message, ToolResultMsg):
+            raise RuntimeError(
+                "Unexpected message from the sandbox: "
+                f"{message!r}"
+            )
+        if message.error:
+            raise McpToolError(message.output)
+        return message.output
 
     wrapper.__name__ = spec.name
     return wrapper

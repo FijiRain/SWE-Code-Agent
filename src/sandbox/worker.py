@@ -8,7 +8,11 @@ from .restricted_sandbox import (
 )
 from .wrapper_tools import make_tools_wrapper
 from .manual_manager import make_tool_help
-
+from .protocol import (
+    send_message, recv_main_message,
+    StdoutMsg, ReadyMsg, StopMsg,
+    ResultMsg, CodeMsg
+)
 
 from typing import Dict, NoReturn, Any
 from multiprocessing.connection import Connection
@@ -16,6 +20,7 @@ from contextlib import redirect_stdout
 import signal
 import keyword
 import ast
+import os
 
 
 class PipeWriter:
@@ -32,7 +37,7 @@ class PipeWriter:
     def write(self, text: str) -> int:
         """Send text through the pipe and return its length."""
         if text:
-            self._conn.send(("stdout", text))
+            send_message(self._conn, StdoutMsg(text=text))
         return len(text)
 
     def flush(self) -> None:
@@ -81,6 +86,7 @@ def code_worker_loop(
         tools: MCP tools to expose in the namespace, indexed by name.
         echo: True to print the value of expression statements.
     """
+    os.environ.clear()
     signal.signal(signal.SIGINT, signal.SIG_IGN)
     apply_memory_restricted(config.max_memory_mb)
     restricted_conn()
@@ -106,13 +112,16 @@ def code_worker_loop(
         raise FinalAnswerSignal(value)
     namespace["final_answer"] = final_answer
 
-    conn.send("ready")
+    send_message(conn, ReadyMsg())
     while True:
         try:
-            code = conn.recv()
+            message = recv_main_message(conn)
+            if isinstance(message, StopMsg):
+                break
+            if not isinstance(message, CodeMsg):
+                raise RuntimeError(f"Unexpected message: {message!r}")
+            code = message.code
         except EOFError:
-            break
-        if code is None:
             break
 
         state_final_answer["answer"] = None
@@ -121,7 +130,6 @@ def code_worker_loop(
         try:
             with redirect_stdout(buffer):
                 run_code(code, namespace, echo)
-                # exec(code, namespace)
         except SystemExit:
             exec_res.error = ("SystemExit: exit()/sys.exit() are not allowed "
                               "in the sandbox. "
@@ -143,4 +151,10 @@ def code_worker_loop(
             exec_res.error = f"Error {type(e).__name__}: {e}"
 
         exec_res.final_answer = state_final_answer['answer']
-        conn.send(("result", exec_res))
+        send_message(
+            conn,
+            ResultMsg(
+                error=exec_res.error,
+                final_answer=exec_res.final_answer
+            )
+        )

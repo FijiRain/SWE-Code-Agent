@@ -4,15 +4,21 @@ from ..models.SandboxConfig import SandboxConfig
 from .restricted_sandbox import truncke_output
 from .McpBrige import McpBridge
 from ..models.ToolSpec import ToolSpec
-from .wrapper_tools import WorkerToolMessageIntput
 from .manual_manager import build_manual
 from .worker import code_worker_loop
 from .config import START_WORK_TIMEOUT
+from .protocol import (
+    CodeMsg, StdoutMsg, ToolCallMsg,
+    ResultMsg, ToolResultMsg, ReadyMsg,
+    StopMsg,
+    recv_worker_message, send_message
+)
 
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, List
 import multiprocessing as mp
 import time
 import concurrent.futures
+from pydantic import ValidationError
 
 
 class Sandbox:
@@ -45,7 +51,10 @@ class Sandbox:
         self._mcp_bridge: McpBridge | None = None
 
         if mcp_command is not None:
-            self._mcp_bridge = McpBridge(mcp_command)
+            self._mcp_bridge = McpBridge(
+                mcp_command,
+                self.__config.max_tool_time_seconds
+            )
             try:
                 self._mcp_bridge.connect()
                 self._tools_list = self._mcp_bridge.get_tools_list()
@@ -83,9 +92,12 @@ class Sandbox:
         if not self._conn.poll(START_WORK_TIMEOUT):
             self._process.kill()
             self._conn.close()
+            self._process.join()
             raise RuntimeError("The worker process failed to start")
         try:
-            self._conn.recv()
+            message = recv_worker_message(self._conn)
+            if not isinstance(message, ReadyMsg):
+                raise RuntimeError("unexpected first message")
         except EOFError:
             self._process.join()
             self._conn.close()
@@ -118,50 +130,67 @@ class Sandbox:
         chunks: List[str] = []
         deadline = time.monotonic() + self.__config.max_execution_time_seconds
         tool_truncated = False
+        protocol_error = False
         try:
-            self._conn.send(code)
+            send_message(self._conn, CodeMsg(code=code))
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0 or not self._conn.poll(remaining):
                     timed_out = True
                     break
-                state, payload = self._conn.recv()
-                if state == "stdout":
-                    chunks.append(payload)
-                elif state == "tool_call":
-                    start_time_tool = time.monotonic()
-                    message_intput = WorkerToolMessageIntput()
+                message = recv_worker_message(self._conn)
+                if isinstance(message, StdoutMsg):
+                    chunks.append(message.text)
+                elif isinstance(message, ToolCallMsg):
+                    start_time = time.monotonic()
+                    response = ToolResultMsg()
                     try:
                         if self._mcp_bridge is None:
                             raise RuntimeError(
                                 "No MCP server connected"
                             )
-                        message_intput.output = self._mcp_bridge.call_tool(
-                            payload.name,
-                            payload.args
+                        response.output = self._mcp_bridge.call_tool(
+                            message.name,
+                            message.args
                         )
-                        message_intput.output, cut = truncke_output(
-                            message_intput.output,
+                        response.output, cut = truncke_output(
+                            response.output,
                             self.__config.max_len_tool_output
                         )
                         tool_truncated = tool_truncated or cut
-                    except (Exception, concurrent.futures.TimeoutError) as e:
-                        message_intput.error = True
-                        message_intput.output = (
+                    except concurrent.futures.TimeoutError:
+                        response.error = True
+                        response.output = (
+                            f"Tool '{message.name}' did not answer within "
+                            f"{self.__config.max_tool_time_seconds} s"
+                        )
+                    except Exception as e:
+                        response.error = True
+                        response.output = (
                             f"{type(e).__name__}: {e}"
                         )
-                    self._conn.send(("tool_result", message_intput))
-                    deadline += time.monotonic() - start_time_tool
+                    send_message(self._conn, response)
+                    deadline += time.monotonic() - start_time
 
-                else:
+                elif isinstance(message, ResultMsg):
                     output = "".join(chunks)
                     output, is_truncate = truncke_output(
                         output, self.__config.max_len_output
                     )
-                    payload.stdout = output
-                    payload.truncated = is_truncate or tool_truncated
-                    return cast(ExecutionResult, payload)
+                    return (
+                        ExecutionResult(
+                            stdout=output,
+                            error=message.error,
+                            final_answer=message.final_answer,
+                            truncated=is_truncate or tool_truncated
+                        )
+                    )
+                else:
+                    protocol_error = True
+                    break
 
+        except ValidationError:
+            protocol_error = True
         except (EOFError, OSError):
             pass
         except KeyboardInterrupt:
@@ -172,6 +201,13 @@ class Sandbox:
         output, is_truncate = truncke_output(
             output, self.__config.max_len_output
         )
+        if protocol_error:
+            return ExecutionResult(
+                stdout=output,
+                error=("The execution environment sent an invalid message "
+                       "and was restarted: all variables are lost."),
+                truncated=is_truncate or tool_truncated
+            )
         if timed_out:
             return ExecutionResult(
                 stdout=output,
@@ -195,7 +231,7 @@ class Sandbox:
                         "A new empty environment was "
                         "started: all variables are lost."
                 ),
-                truncated=is_truncate
+                truncated=is_truncate or tool_truncated
             )
 
     def get_manual(self) -> str:
@@ -205,7 +241,7 @@ class Sandbox:
     def _stop_worker(self) -> None:
         """Ask the worker to stop, kill it if needed and close the pipe."""
         try:
-            self._conn.send(None)
+            send_message(self._conn, StopMsg())
         except (EOFError, OSError):
             pass
         self._process.join(timeout=1)

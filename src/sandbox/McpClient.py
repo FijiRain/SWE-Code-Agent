@@ -146,7 +146,9 @@ class McpClient:
                 transport = streamable_http_client(self._url)
             else:
                 transport = stdio_client(self._params)
-            streams = await self._stack.enter_async_context(transport)
+            streams = await self._stack.enter_async_context(
+                transport
+            )
             read, write = streams[0], streams[1]
             self._session = await self._stack.enter_async_context(
                 ClientSession(read, write)

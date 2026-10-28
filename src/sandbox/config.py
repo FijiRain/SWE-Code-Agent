@@ -24,3 +24,5 @@ JSON_TO_PY: Dict[Any, str] = {
     "string": "str", "integer": "int", "number": "float",
     "boolean": "bool", "object": "dict", "null": "None"
 }
+
+MCP_COMMAND = "python mcp_tools_mbpp.py"
