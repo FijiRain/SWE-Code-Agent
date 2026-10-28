@@ -11,11 +11,10 @@ from .exception import (KeyQuotaError, ServerError,
                         FatalError, ProviderRequestError)
 from src.models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from src.models.output_data_models import SolutionOutput, StepMetrics
-from src.models.SandboxConfig import load_config
+from src.models.SandboxConfig import load_config  # noqa: F401  # ???
 from src.models.ExecutionResult import ExecutionResult
 from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
 from .py_extractor import extract_code
-from tests.test_ExecutionResult import MockSandbox  # TEMPORAIRE POUR TEST
 from ..sandbox.api import Sandbox
 
 
@@ -41,7 +40,6 @@ class Orchestrator:
         self.provider = self.load_provider(provider_url)
         self.key_manager = KeyManager(self.provider)
 
-        self.sandbox = MockSandbox()  # JUSTE UN TEST
         self.sys_prompt = ""
         self.user_prompt = ""
         self.context: list[ChatCompletionMessageParam] = []
@@ -166,7 +164,8 @@ class Orchestrator:
         current_iterations = 0
         solution = ""
         error = None
-        with Sandbox("python mcp_tools_mbpp.py") as sandbox:  # hardcode ici a verif en fonction de la correction, faire une variable dans un config 
+        # A verifier en fonction de la correction (TODO: variable dans config)
+        with Sandbox("python mcp_tools_mbpp.py") as sandbox:
             if self.sandbox_manual is None:
                 self.sandbox_manual = sandbox.get_manual()
             self.build_context(task)
@@ -181,21 +180,30 @@ class Orchestrator:
                 sandbox_input = extract_code(answer)
                 if sandbox_input is None:
                     sandbox_input = ""
-                    sandbox_output = ("Error: No valid Python code block found. "
-                                    "Wrap your code in ```python ... ```.")
+                    sandbox_output = (
+                        "Error: No valid Python code block found. "
+                        "Wrap your code in ```python ... ```."
+                    )
                 else:
                     try:
-                        execution_res: ExecutionResult = sandbox.execute(sandbox_input)
+                        execution_res: ExecutionResult = sandbox.execute(
+                            sandbox_input
+                        )
                     except KeyboardInterrupt:
-                        print("ERROR - Keyboard interruption")  # a verif si ok de quitter comme ca
+                        # a verif si ok de quitter comme ca
+                        print("ERROR - Keyboard interruption")
                         break
                     if execution_res.final_answer is not None:
                         solved = True
                         solution = execution_res.final_answer
                     sandbox_output = self.sandbox_analysis(execution_res)
 
-                self.context.append({"role": "user",
-                                    "content": f"Observation:\n{sandbox_output}"})
+                self.context.append(
+                    {
+                        "role": "user",
+                        "content": f"Observation:\n{sandbox_output}",
+                    }
+                )
                 # resumer l'historique pour SWE eventuellement
 
                 step = StepMetrics(
@@ -212,16 +220,14 @@ class Orchestrator:
                 )
                 self.all_steps.append(step)
 
-                stop, error = self.stop_loop(iterations=len(self.all_steps),
-                                            input_tok=sum(s.input_tokens
-                                                        for s
-                                                        in self.all_steps),
-                                            output_tok=sum(s.output_tokens
-                                                            for s
-                                                            in self.all_steps),
-                                            time=time.time() - start_time,
-                                            limits=limits,
-                                            solved=solved)
+                stop, error = self.stop_loop(
+                    iterations=len(self.all_steps),
+                    input_tok=sum(s.input_tokens for s in self.all_steps),
+                    output_tok=sum(s.output_tokens for s in self.all_steps),
+                    time=time.time() - start_time,
+                    limits=limits,
+                    solved=solved,
+                )
                 if stop:
                     break
             '''#_#_#_# AGENT LOOP END #_#_#_#'''
@@ -236,8 +242,9 @@ class Orchestrator:
                               + sum(s.retries for s in self.all_steps),
                               total_input_tokens=sum(s.input_tokens
                                                      for s in self.all_steps),
-                              total_output_tokens=sum(s.output_tokens
-                                                      for s in self.all_steps),
+                              total_output_tokens=sum(
+                                  s.output_tokens for s in self.all_steps
+                              ),
                               total_time_seconds=total_time,
                               steps=self.all_steps,
                               system_prompt=self.sys_prompt,
@@ -245,6 +252,7 @@ class Orchestrator:
                               )
 
     def build_context(self, task: MBPPTaskInput | SWEBenchTaskInput) -> None:
+        """Construct initial system and user messages for the task."""
         if isinstance(task, MBPPTaskInput):
             if self.sandbox_manual is not None:
                 self.sys_prompt = build_mbpp_sys_prompt(self.sandbox_manual)
@@ -266,6 +274,7 @@ class Orchestrator:
                   time: float,
                   limits: Limits,
                   solved: bool) -> tuple[bool, Optional[str]]:
+        """Evaluate task termination conditions against configured limits."""
         if solved:
             return True, None
         if iterations >= limits.max_iterations:
@@ -280,6 +289,7 @@ class Orchestrator:
         return False, None
 
     def sandbox_analysis(self, sandbox_output: ExecutionResult) -> str:
+        """Format raw sandbox execution results into agent observation text."""
         if sandbox_output.timed_out:
             if sandbox_output.stdout:
                 return (f"Execution timed out (infinite loop/slow algorithm). "
