@@ -40,7 +40,7 @@ Ce document récapitule les points clés à valider entre **l'Orchestrateur** et
     1. `run_tests(code: str, test_list: list[str])`
     2. `final_answer(code_string: str)`
   - Confirmer que les fonctions injectées dans l'espace global de la Sandbox portent **exactement ces noms et ces signatures**.
-- [ ] **Prise en charge de `test_imports` :** !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+- [x] **Prise en charge de `test_imports` :** !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   - Pour les tâches MBPP requérant des imports spécifiques (`task.test_imports`), confirmer si `run_tests` les importe en amont ou si le LLM doit inclure les `import` directement dans sa chaîne `code`.
 
 ---
@@ -58,7 +58,7 @@ Ce document récapitule les points clés à valider entre **l'Orchestrateur** et
 
 ## 5. Emplacement des modèles de données partagés
 
-- [ ] **Déplacement de `ExecutionResult` :**
+- [x] **Déplacement de `ExecutionResult` :**
   - Actuellement dans `tests/test_ExecutionResult.py` pour les mocks temporaires.
   - Déplacer sa définition dans `src/models/output_data_models.py` (ou `src/models/sandbox_models.py`).
   - Permettra à `src/orchestration/` et `src/sandbox/` d'importer directement :
