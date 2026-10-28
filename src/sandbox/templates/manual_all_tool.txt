@@ -12,7 +12,7 @@ imports stay available from one block to the next. You only see what you print.
 - Not available: ${restricted_builtin}.
 
 ## Finishing
-Call final_answer(value) when you are done (value is converted to a string).
+Call final_answer(code_string: str) when you are done (value is converted to a string).
 Call it on its own, never inside a try/except.
 
 ## Tools

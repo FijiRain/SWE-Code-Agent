@@ -11,9 +11,12 @@ from .exception import (KeyQuotaError, ServerError,
                         FatalError, ProviderRequestError)
 from src.models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from src.models.output_data_models import SolutionOutput, StepMetrics
+from src.models.SandboxConfig import load_config
+from src.models.ExecutionResult import ExecutionResult
 from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
 from .py_extractor import extract_code
-from tests.test_ExecutionResult import ExecutionResult, MockSandbox  # TEMPORAIRE POUR TEST
+from tests.test_ExecutionResult import MockSandbox  # TEMPORAIRE POUR TEST
+from ..sandbox.api import Sandbox
 
 
 @dataclass
@@ -38,7 +41,7 @@ class Orchestrator:
         self.provider = self.load_provider(provider_url)
         self.key_manager = KeyManager(self.provider)
 
-        self.sandbox = MockSandbox()  # Anatole ici JUSTE UN TEST
+        self.sandbox = MockSandbox()  # JUSTE UN TEST
         self.sys_prompt = ""
         self.user_prompt = ""
         self.context: list[ChatCompletionMessageParam] = []
@@ -48,6 +51,8 @@ class Orchestrator:
         self.step_output_tokens = 0
         self.step_time = 0.0
         self.all_steps: list[StepMetrics] = []
+
+        self.sandbox_manual: str | None = None
 
     def load_provider(self, url: str) -> str:
         """Identify the matching provider environment variable from the URL."""
@@ -145,7 +150,6 @@ class Orchestrator:
         """Execute the agentic loop to solve the task and return solution."""
 
         self.all_steps.clear()
-        self.build_context(task)
 
         if isinstance(task, MBPPTaskInput):
             limits = MBPP_LIMITS
@@ -156,64 +160,71 @@ class Orchestrator:
             benchmark_type = "swebench"
             id_bench = str(task.instance_id)
 
-        # ouvrir la sandbox avec with ici ? + finally avec le close()
         '''#_#_#_# AGENT LOOP START #_#_#_#'''
         solved = False
         start_time = time.time()
         current_iterations = 0
         solution = ""
         error = None
-        while current_iterations < limits.max_iterations and not solved:
-            current_iterations += 1
-            try:
-                answer = self.query_llm()
-            except ProviderRequestError as e:
-                error = str(e)
-                break
-            self.context.append({"role": "assistant", "content": answer})
-            sandbox_input = extract_code(answer)
-            if sandbox_input is None:
-                sandbox_input = ""
-                sandbox_output = ("Error: No valid Python code block found. "
-                                  "Wrap your code in ```python ... ```.")
-            else:
-                execution_res: ExecutionResult = self.sandbox.execute(sandbox_input)  # try/except pour la sandbox ??
-                if execution_res.final_answer is not None:
-                    solved = True
-                    solution = execution_res.final_answer
-                sandbox_output = self.sandbox_analysis(execution_res)
+        with Sandbox("python mcp_tools_mbpp.py") as sandbox:  # hardcode ici a verif en fonction de la correction, faire une variable dans un config 
+            if self.sandbox_manual is None:
+                self.sandbox_manual = sandbox.get_manual()
+            self.build_context(task)
+            while current_iterations < limits.max_iterations and not solved:
+                current_iterations += 1
+                try:
+                    answer = self.query_llm()
+                except ProviderRequestError as e:
+                    error = str(e)
+                    break
+                self.context.append({"role": "assistant", "content": answer})
+                sandbox_input = extract_code(answer)
+                if sandbox_input is None:
+                    sandbox_input = ""
+                    sandbox_output = ("Error: No valid Python code block found. "
+                                    "Wrap your code in ```python ... ```.")
+                else:
+                    try:
+                        execution_res: ExecutionResult = sandbox.execute(sandbox_input)
+                    except KeyboardInterrupt:
+                        print("ERROR - Keyboard interruption")  # a verif si ok de quitter comme ca
+                        break
+                    if execution_res.final_answer is not None:
+                        solved = True
+                        solution = execution_res.final_answer
+                    sandbox_output = self.sandbox_analysis(execution_res)
 
-            self.context.append({"role": "user",
-                                 "content": f"Observation:\n{sandbox_output}"})
-            # resumer l'historique pour SWE eventuellement
+                self.context.append({"role": "user",
+                                    "content": f"Observation:\n{sandbox_output}"})
+                # resumer l'historique pour SWE eventuellement
 
-            step = StepMetrics(
-                step=current_iterations,
-                input_tokens=self.step_input_tokens,
-                output_tokens=self.step_output_tokens,
-                request_time_ms=self.step_time,
-                api_url=self.provider_url,
-                model_name=self.model,
-                llm_output=answer,
-                sandbox_input=sandbox_input,
-                sandbox_output=sandbox_output,
-                retries=self.step_retries
-            )
-            self.all_steps.append(step)
+                step = StepMetrics(
+                    step=current_iterations,
+                    input_tokens=self.step_input_tokens,
+                    output_tokens=self.step_output_tokens,
+                    request_time_ms=self.step_time,
+                    api_url=self.provider_url,
+                    model_name=self.model,
+                    llm_output=answer,
+                    sandbox_input=sandbox_input,
+                    sandbox_output=sandbox_output,
+                    retries=self.step_retries
+                )
+                self.all_steps.append(step)
 
-            stop, error = self.stop_loop(iterations=len(self.all_steps),
-                                         input_tok=sum(s.input_tokens
-                                                       for s
-                                                       in self.all_steps),
-                                         output_tok=sum(s.output_tokens
+                stop, error = self.stop_loop(iterations=len(self.all_steps),
+                                            input_tok=sum(s.input_tokens
                                                         for s
                                                         in self.all_steps),
-                                         time=time.time() - start_time,
-                                         limits=limits,
-                                         solved=solved)
-            if stop:
-                break
-        '''#_#_#_# AGENT LOOP END #_#_#_#'''
+                                            output_tok=sum(s.output_tokens
+                                                            for s
+                                                            in self.all_steps),
+                                            time=time.time() - start_time,
+                                            limits=limits,
+                                            solved=solved)
+                if stop:
+                    break
+            '''#_#_#_# AGENT LOOP END #_#_#_#'''
 
         total_time = time.time() - start_time
         return SolutionOutput(task_id=id_bench,
@@ -235,8 +246,11 @@ class Orchestrator:
 
     def build_context(self, task: MBPPTaskInput | SWEBenchTaskInput) -> None:
         if isinstance(task, MBPPTaskInput):
-            # Attention il faudra mettre le manual en arg du sys prompt, la c par defaut
-            self.sys_prompt = build_mbpp_sys_prompt()
+            if self.sandbox_manual is not None:
+                self.sys_prompt = build_mbpp_sys_prompt(self.sandbox_manual)
+            else:
+                print("ERROR - No manual found")
+                raise  # A determiner
             self.user_prompt = build_mbpp_user_prompt(task)
         else:
             # A implémenter pour SWE, str vide pour Pylance
