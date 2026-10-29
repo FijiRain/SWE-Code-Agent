@@ -84,11 +84,11 @@ qwen/qwen3.8-27b :
   "total_output_tokens": 219,
   "total_time_seconds": 1.775547981262207,
 
-openai/gpt-oss-20b :
+openai/gpt-oss-20b (**FAIL**):
 
 "error": "Unrecoverable client error (400): {\"error\":{\"message\":\"Tool choice is none, but model called a tool\",\"type\":\"invalid_request_error\",\"code\":\"tool_use_failed\",\"failed_generation
 
-openai/gpt-oss-120b (top swe)
+openai/gpt-oss-120b (top swe) :
 
   "iterations": 2,
   "total_requests": 2,
@@ -97,7 +97,28 @@ openai/gpt-oss-120b (top swe)
   "total_time_seconds": 5.684346914291382,
 
 
-
 ## OpenRouter
+# (le plus lent)
+
+cohere/north-mini-code:free (**FAIL**):
+
+  "iterations": 2,
+  "total_requests": 2,
+  "total_input_tokens": 2200,
+  "total_output_tokens": 1909, <= **FAILED**
+  "total_time_seconds": 17.83266305923462,
+
+
+nvidia/nemotron-3-ultra-550b-a55b:free :
+
+  "iterations": 3,
+  "total_requests": 3,
+  "total_input_tokens": 3868,
+  "total_output_tokens": 670,
+  "total_time_seconds": 22.16216802597046,
+
+## Test moulinette MBPP:
+
+
 
 
