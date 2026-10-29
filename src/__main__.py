@@ -9,8 +9,10 @@ import sys
 def main() -> int:
     """Run the interactive sandbox and return its exit code."""
     # from .sandbox.test.sandbox_full_test import main
+    
     # Sandbox("python mcp_tools_swebench.py --container smith-ID", config,
-    #     mcp_env={"TESTBED_PATH": host_dir})
+    #          mcp_env={"TESTBED_PATH": host_dir})
+    
     # main()
     # return sandbox_cli()
 
