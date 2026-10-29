@@ -93,8 +93,10 @@ class Orchestrator:
                 raise ServerError(
                     f"Server error ({status}): {e}") from e
             else:
+                log = (getattr(e, "response", None) and e.response.text or
+                       str(e))
                 raise FatalError(
-                    f"Unrecoverable client error ({status}): {e}") from e
+                    f"Unrecoverable client error ({status}): {log}") from e
 
         except (APIConnectionError, APITimeoutError) as e:
             raise ServerError(f"Network/connection error: {e}") from e
