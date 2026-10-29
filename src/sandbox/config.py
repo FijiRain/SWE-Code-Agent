@@ -24,3 +24,6 @@ JSON_TO_PY: Dict[Any, str] = {
     "string": "str", "integer": "int", "number": "float",
     "boolean": "bool", "object": "dict", "null": "None"
 }
+
+MCP_COMMAND_MBPP = "python mcp_tools_mbpp.py"
+MCP_COMMAND_SWE = "python mcp_tools_swebench.py --container smith-ID"

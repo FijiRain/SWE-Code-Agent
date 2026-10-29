@@ -126,7 +126,7 @@ def build_manual(sand_conf: SandboxConfig, tools: Dict[str, ToolSpec]) -> str:
         tools: MCP tools indexed by name.
     """
     return render_manual(
-        time_limit=sand_conf.max_execution_time_seconds,
+        time_limit=sand_conf.max_tool_time_seconds,
         memory_limit=sand_conf.max_memory_mb,
         charcter_limit_output=sand_conf.max_len_output,
         charcater_limit_tool=sand_conf.max_len_tool_output,
