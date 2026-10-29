@@ -45,3 +45,59 @@ models can be disregarded and why. Based on your data.
 
 The backing solution.json files must be present in your repository.
 
+
+_______________________
+
+Groq: uv run python3 -m agent_mbpp --task-file tests/test_mbpp_task.json --output tests/mbpp_solution.json --model-name "" --provider-url "https://api.groq.com/openai/v1/"
+
+OpenRouter: uv run python3 -m agent_mbpp --task-file tests/test_mbpp_task.json --output tests/mbpp_solution.json --model-name "" --provider-url "https://openrouter.ai/api/v1"
+
+Google AI Studio: uv run python3 -m agent_mbpp --task-file tests/test_mbpp_task.json --output tests/mbpp_solution.json --model-name "" --provider-url "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+# MBPP (task 128):
+
+## Google:
+
+gemini-3-flash-preview : 
+
+  "iterations": 3,
+  "total_requests": 3,
+  "total_input_tokens": 4282,
+  "total_output_tokens": 650,
+  "total_time_seconds": 7.871476888656616,
+
+gemini-3.1-flash-lite-preview :
+
+  "iterations": 2,
+  "total_requests": 2,
+  "total_input_tokens": 2448,
+  "total_output_tokens": 262,
+  "total_time_seconds": 4.348650932312012,
+
+## Groq
+
+qwen/qwen3.8-27b :
+
+  "iterations": 2,
+  "total_requests": 2,
+  "total_input_tokens": 2380,
+  "total_output_tokens": 219,
+  "total_time_seconds": 1.775547981262207,
+
+openai/gpt-oss-20b :
+
+"error": "Unrecoverable client error (400): {\"error\":{\"message\":\"Tool choice is none, but model called a tool\",\"type\":\"invalid_request_error\",\"code\":\"tool_use_failed\",\"failed_generation
+
+openai/gpt-oss-120b (top swe)
+
+  "iterations": 2,
+  "total_requests": 2,
+  "total_input_tokens": 2398,
+  "total_output_tokens": 518,
+  "total_time_seconds": 5.684346914291382,
+
+
+
+## OpenRouter
+
+
