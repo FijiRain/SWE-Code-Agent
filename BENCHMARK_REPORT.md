@@ -54,7 +54,7 @@ OpenRouter: uv run python3 -m agent_mbpp --task-file tests/test_mbpp_task.json -
 
 Google AI Studio: uv run python3 -m agent_mbpp --task-file tests/test_mbpp_task.json --output tests/mbpp_solution.json --model-name "" --provider-url "https://generativelanguage.googleapis.com/v1beta/openai/"
 
-# MBPP (task 128):
+# Test MBPP sur une même task (128) et differents LLM:
 
 ## Google:
 
@@ -204,7 +204,7 @@ Groq - qwen3.8-27b :
 
 - task 129
 
-FAIL !
+FAIL ! (patched 29/10/26)
 
   "solution": "", <= Correctness check detail: Traceback(most recent call last): File "<string>", line 2, i<module>
 
