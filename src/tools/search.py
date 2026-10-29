@@ -1,4 +1,5 @@
-from src.tools.path_utils import get_testbed_root, resolve_testbed_path
+from src.tools.path_utils import (get_testbed_root, resolve_testbed_path,
+                                  to_display_path)
 from pathlib import Path
 import re
 import ast
@@ -52,7 +53,7 @@ def search_code(pattern: str, file_pattern: str = "*") -> str:
             lines = content.splitlines()
             for line_num, line in enumerate(lines, start=1):
                 if regex.search(line):
-                    result.append(f"{file.resolve()}:{line_num} {line}")
+                    result.append(f"{to_display_path(file)}:{line_num} {line}")
         except PermissionError:
             continue
     if not result:
@@ -96,7 +97,8 @@ def search_function_or_class_definition_in_code(name: str) -> str:
                                  ast.ClassDef)) and node.name == name:
                 line_num = node.lineno
                 line_content = lines[line_num - 1]
-                result.append(f"{file.resolve()}:{line_num} {line_content}")
+                result.append(f"{to_display_path(file)}:{line_num} "
+                              f"{line_content}")
     if not result:
         return f"No definition found for '{name}'."
 
@@ -144,7 +146,8 @@ def find_references(name: str, filepath: str = "", line: int = -1) -> str:
             if filepath and line_num == line:
                 continue
             if regex.search(line_content):
-                result.append(f"{file.resolve()}:{line_num} {line_content}")
+                result.append(f"{to_display_path(file)}:{line_num} "
+                              f"{line_content}")
 
     if not result:
         return f"No references found for '{name}'."
