@@ -166,7 +166,9 @@ class Orchestrator:
         current_iterations = 0
         solution = ""
         error = None
-        # with Sandbox("python mcp_tools_mbpp.py", load_config(template)) as sandbox: # if swe alors on va envoyer le template swe a load_config() | attention il a variable echo par defaut a false, donc pas oblige a mettre, mais si on la met pas il faut kwarg* le mcp_env= | 4eme param que sur swe dans ce cas la il faut un dictionnaire style {"TESTBED_PATH": host_dir} ou potentiellement le contenu au lieu du dict
+        # with Sandbox("python mcp_tools_mbpp.py", load_config(template))
+        # if swe: send swe template to load_config(), echo=False,
+        # pass mcp_env={"TESTBED_PATH": host_dir}
         with Sandbox("python mcp_tools_mbpp.py") as sandbox:
             if self.sandbox_manual is None:
                 self.sandbox_manual = sandbox.get_manual()
