@@ -15,11 +15,18 @@ the protocol. Use stderr if you need to debug.
 """
 import json
 import sys
+import os
 import time
 
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("mini-test-server")
+
+
+@mcp.tool()
+def get_env(name: str) -> str:
+    """Return the value of an environment variable ('<unset>' if missing)."""
+    return os.environ.get(name, "<unset>")
 
 
 @mcp.tool()

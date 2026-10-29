@@ -33,7 +33,8 @@ class Sandbox:
     def __init__(self,
                  mcp_command: str | None = None,
                  sandbox_config: SandboxConfig | None = None,
-                 echo: bool = False
+                 echo: bool = False,
+                 mcp_env: Dict[str, str] | None = None
                  ) -> None:
         """Connect to the MCP server and start the worker process.
 
@@ -53,7 +54,8 @@ class Sandbox:
         if mcp_command is not None:
             self._mcp_bridge = McpBridge(
                 mcp_command,
-                self.__config.max_tool_time_seconds
+                self.__config.max_tool_time_seconds,
+                mcp_env
             )
             try:
                 self._mcp_bridge.connect()

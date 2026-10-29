@@ -59,11 +59,13 @@ def check_server_command(parts: List[str]) -> None:
 class McpClient:
     """Client of an MCP server, launched over stdio or reached by HTTP."""
 
-    def __init__(self, command: str):
+    def __init__(self, command: str, env: Dict[str, str] | None = None):
         """Parse and check the command that starts the MCP server.
 
         Args:
-            command: Shell-like command line that starts the server.
+            command: Command line that starts the server, or an HTTP URL.
+            env: Extra environment variables for the server process (stdio
+            only, ignored for an HTTP URL).
 
         Raises:
             McpConnectionError: If the command is invalid or not runnable.
@@ -84,7 +86,8 @@ class McpClient:
             check_server_command(parts)
             self._params = StdioServerParameters(
                 command=parts[0],
-                args=parts[1:]
+                args=parts[1:],
+                env=env
             )
         self._stack = AsyncExitStack()
 

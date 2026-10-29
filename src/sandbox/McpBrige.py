@@ -21,14 +21,15 @@ class McpBridge:
     """
 
     def __init__(self, command: str,
-                 tool_timeout: float = TIMEOUT_CALL_TOOL) -> None:
+                 tool_timeout: float = TIMEOUT_CALL_TOOL,
+                 env: Dict[str, str] | None = None) -> None:
         """Create the client and start the event loop thread.
 
         Args:
             command: Command line that starts the MCP server.
         """
         self._tool_timeout = tool_timeout
-        self._client = McpClient(command)
+        self._client = McpClient(command, env)
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(
             target=self._loop.run_forever,
