@@ -1,5 +1,7 @@
+import io
 import json
 import re
+import tokenize
 from typing import Any, Optional
 
 
@@ -59,10 +61,43 @@ def extract_xml_tool_call(content: str) -> Optional[str]:
     return content if content else None
 
 
+def extract_final_answer_call(text: str) -> Optional[str]:
+    """Extract a standalone final_answer(...) call from text."""
+    match = re.search(r"(?:^|[\n>`])\s*(final_answer\s*\()", text)
+    if not match:
+        return None
+    start = match.start(1)
+    sub_text = text[start:]
+    try:
+        tokens = tokenize.generate_tokens(io.StringIO(sub_text).readline)
+        paren_depth = 0
+        end_row, end_col = None, None
+        for tok in tokens:
+            if tok.string == "(":
+                paren_depth += 1
+            elif tok.string == ")":
+                paren_depth -= 1
+                if paren_depth == 0:
+                    end_row, end_col = tok.end
+                    break
+        if end_row is not None:
+            lines = sub_text.splitlines(keepends=True)
+            matched = (
+                "".join(lines[:end_row - 1])
+                + lines[end_row - 1][:end_col]
+            )
+            return matched.strip()
+    except Exception:
+        pass
+    return None
+
+
 def extract_code(answer: str) -> Optional[str]:
     """Extract executable Python code from various LLM output formats."""
     if not answer or not answer.strip():
         return None
+
+    extracted: Optional[str] = None
 
     # Explicit Python Markdown block: ```python ... ``` or ```py ... ```
     py_md = re.search(
@@ -71,29 +106,38 @@ def extract_code(answer: str) -> Optional[str]:
         re.DOTALL | re.IGNORECASE
     )
     if py_md and py_md.group(1).strip():
-        return py_md.group(1).strip()
+        extracted = py_md.group(1).strip()
+    else:
+        # XML tags: <code>...</code>, <python>...</python>, <tool_call>...
+        xml_match = re.search(
+            r"<(code|python|tool_call)>\s*(.*?)\s*</\1>",
+            answer,
+            re.DOTALL | re.IGNORECASE
+        )
+        if xml_match and xml_match.group(2).strip():
+            tag = xml_match.group(1).lower()
+            inner = xml_match.group(2).strip()
+            if tag == "tool_call":
+                extracted = extract_xml_tool_call(inner)
+            else:
+                extracted = inner
+        else:
+            # Generic Markdown block without language specifier: ``` ... ```
+            gen_md = re.search(r"```\s*\n(.*?)```", answer, re.DOTALL)
+            if gen_md and gen_md.group(1).strip():
+                extracted = gen_md.group(1).strip()
+            else:
+                # Classic ReAct format: Action: tool_name / Action Input: {...}
+                react_code = extract_react_action(answer)
+                if react_code:
+                    extracted = react_code
 
-    # XML tags: <code>...</code>, <python>...</python>, <tool_call>...
-    xml_match = re.search(
-        r"<(code|python|tool_call)>\s*(.*?)\s*</\1>",
-        answer,
-        re.DOTALL | re.IGNORECASE
-    )
-    if xml_match and xml_match.group(2).strip():
-        tag = xml_match.group(1).lower()
-        inner = xml_match.group(2).strip()
-        if tag == "tool_call":
-            return extract_xml_tool_call(inner)
-        return inner
+    # Fallback/safeguard: check for final_answer(...) call outside block
+    final_call = extract_final_answer_call(answer)
+    if final_call:
+        if extracted is None:
+            return final_call
+        if "final_answer" not in extracted:
+            return f"{extracted}\n{final_call}"
 
-    # Generic Markdown block without language specifier: ``` ... ```
-    gen_md = re.search(r"```\s*\n(.*?)```", answer, re.DOTALL)
-    if gen_md and gen_md.group(1).strip():
-        return gen_md.group(1).strip()
-
-    # Classic ReAct format: Action: tool_name / Action Input: {...}
-    react_code = extract_react_action(answer)
-    if react_code:
-        return react_code
-
-    return None
+    return extracted
