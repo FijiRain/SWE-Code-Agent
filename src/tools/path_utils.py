@@ -18,6 +18,8 @@ def to_display_path(file: Path) -> str:
     root = get_testbed_root()
     try:
         rel = file.resolve().relative_to(root)
+        if str(rel) == ".":
+            return "/testbed"
         return f"/testbed/{rel}"
     except ValueError:
         return str(file.resolve())

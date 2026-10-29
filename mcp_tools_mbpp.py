@@ -38,11 +38,13 @@ def main() -> None:
                         help="Host for SSE/HTTP transport")
 
     args = parser.parse_args()
+    selected_mode = args.mode or args.transport
     transport: Literal["stdio", "streamable-http"] = (
         "streamable-http"
-        if args.transport in ["http", "sse", "streamable-http"]
+        if selected_mode in ["http", "sse", "streamable-http"]
         else "stdio"
     )
+
     if transport == "streamable-http":
         mcp.settings.port = args.port
         mcp.settings.host = args.host

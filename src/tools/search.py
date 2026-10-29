@@ -123,9 +123,12 @@ def find_references(name: str, filepath: str = "", line: int = -1) -> str:
         return "Error: name cannot be empty."
 
     if filepath:
-        path = resolve_testbed_path(filepath)
+        try:
+            path = resolve_testbed_path(filepath)
+        except ValueError as e:
+            return f"Error: {e}"
         if not path or not path.is_file():
-            return f"Error: {path} is not a file or do not exist"
+            return f"Error: {filepath} is not a file or do not exist"
         files = [path]
     else:
         files = get_clean_files(get_testbed_root(), "*.py")

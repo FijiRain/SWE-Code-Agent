@@ -35,10 +35,10 @@ def main() -> None:
     """
     parser = argparse.ArgumentParser(description="SWE-bench MCP Server")
     parser.add_argument(
-            "--transport",
-            choices=["stdio", "sse", "http"],
-            default="stdio",
-            help="Transport type (stdio or sse/http)")
+        "--transport",
+        choices=["stdio", "sse", "http"],
+        default="stdio",
+        help="Transport type (stdio or sse/http)")
 
     parser.add_argument(
         "mode",
