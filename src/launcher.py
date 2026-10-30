@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from pydantic import ValidationError
 from src.models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from src.orchestration.orchestrator import Orchestrator
+from src.orchestration.docker_env import swe_docker_env
 
 load_dotenv()
 
@@ -22,6 +23,7 @@ def run_MBPP(task_file: str, output: str,
     orchestrator = Orchestrator(model_name, provider_url)
 
     res = orchestrator.complete_task(task)
+
     if os.path.dirname(output):
         os.makedirs(os.path.dirname(output), exist_ok=True)
     with open(output, "w") as f:
@@ -42,7 +44,14 @@ def run_SWE(task_file: str, output: str,
 
     orchestrator = Orchestrator(model_name, provider_url)
 
-    res = orchestrator.complete_task(task)
+    # run the Docker contener and close it after complete_task()
+    with swe_docker_env(task) as (container_id, host_dir):
+        mcp_env = {
+            "TESTBED_PATH": host_dir,
+            "SWE_CONTAINER_ID": container_id
+        }
+        res = orchestrator.complete_task(task, mcp_env)
+
     if os.path.dirname(output):
         os.makedirs(os.path.dirname(output), exist_ok=True)
     with open(output, "w") as f:
