@@ -1,4 +1,5 @@
-from src.tools.path_utils import resolve_testbed_path, get_testbed_root
+from src.tools.path_utils import (resolve_testbed_path, get_testbed_root,
+                                  to_display_path)
 import subprocess
 import os
 import sys
@@ -17,16 +18,33 @@ def run_command(command: str, workdir: str = ".") -> str:
         error message if execution fails or times out.
     """
     timeout = 60
+    container_id = os.environ.get("SWE_CONTAINER_ID")
+    testbed_env = os.environ.get("TESTBED_PATH")
+
+    if not container_id and not (testbed_env and testbed_env.strip()):
+        return ("Error: Neither SWE_CONTAINER_ID nor TESTBED_PATH is set. "
+                "Refusing to execute command on host.")
+
     try:
         working_dir = resolve_testbed_path(workdir)
     except ValueError as e:
         return f"Error: {e}"
-
     if not working_dir.exists() or not working_dir.is_dir():
         return f"Error: Workdir '{workdir}' is not a valid directory."
 
+    if container_id:
+        container_workdir = to_display_path(working_dir)
+        cmd_args = [
+            "docker", "exec", "-w", container_workdir,
+            container_id, "/bin/bash", "-c", command
+        ]
+        run_cwd = None
+    else:
+        cmd_args = ["/bin/bash", "-c", command]
+        run_cwd = working_dir
+
     try:
-        process = subprocess.run(command, shell=True, cwd=working_dir,
+        process = subprocess.run(cmd_args, cwd=run_cwd,
                                  capture_output=True, text=True,
                                  timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -72,30 +90,52 @@ def run_swebench_tests() -> str:
     repo = get_testbed_root()
     timeout = 300
     max_size = 15000
+    container_id = os.environ.get("SWE_CONTAINER_ID")
+    testbed_env = os.environ.get("TESTBED_PATH")
+
+    if not container_id and not (testbed_env and testbed_env.strip()):
+        return ("Error: Neither SWE_CONTAINER_ID nor TESTBED_PATH is set. "
+                "Refusing to execute command on host.")
 
     script_path = os.environ.get('EVAL_SCRIPT_PATH')
     if script_path:
-        script = resolve_testbed_path(script_path)
+        try:
+            script = resolve_testbed_path(script_path)
+        except ValueError as e:
+            return f"Error: {e}"
+
     else:
-        script = get_testbed_root() / "eval.sh"
+        script = repo / "eval.sh"
 
     if not script.exists():
         return f"Error: Evaluation script '{script}' not found."
 
-    command = ["/bin/bash", str(script)]
+    if container_id:
+        cmd_args = ["docker", "exec", "-w", "/testbed", container_id,
+                    "/bin/bash", to_display_path(script)]
+        run_cwd = None
+    else:
+        cmd_args = ["/bin/bash", str(script)]
+        run_cwd = repo
+
     try:
-        process = subprocess.run(command, cwd=repo, capture_output=True,
+        process = subprocess.run(cmd_args, cwd=run_cwd, capture_output=True,
                                  text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return f"Error: Command timed out after {timeout} seconds"
+    except Exception as e:
+        return f"Error executing command {e}"
 
-    result = f"STDOUT:\n{process.stdout}\nSTDERR:\n{process.stderr}"
+    result = (f"Exit code: {process.returncode}\n"
+              f"STDOUT:\n{process.stdout}\n"
+              f"STDERR:\n{process.stderr}")
     warn_msg = ""
     if len(result) > max_size:
-        warn_msg = f"\n...[And {len(result) - max_size} truncated characters]"
-        result = result[:max_size]
-
-    return result + warn_msg
+        truncated = len(result) - max_size
+        warn_msg = f"...[Truncated {truncated} characters from start]...\n"
+        result = (f"Exit code: {process.returncode}\n" + warn_msg +
+                  result[-max_size:])
+    return result
 
 
 def run_mbpp_tests(code: str, test_list: list[str]) -> str:

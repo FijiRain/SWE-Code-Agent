@@ -1,4 +1,5 @@
 from src.tools.path_utils import resolve_testbed_path, get_testbed_root
+import ast
 
 
 def read_file(filepath: str, start_line: int = 1, end_line: int = -1) -> str:
@@ -42,12 +43,19 @@ def read_file(filepath: str, start_line: int = 1, end_line: int = -1) -> str:
         return (f"Error: start_line ({start_line}) is greater than end_line "
                 f"({end_line}).")
 
+    max_lines = 500
     selected_lines = lines[start_line - 1:end_line]
+    warn_msg = ""
+
+    if len(selected_lines) > max_lines:
+        selected_lines = selected_lines[:max_lines]
+        warn_msg = (f"\n... [Truncated: showing lines {start_line} to "
+                    f"{start_line + max_lines - 1} of {total_lines}]")
     result = ("\n".join(f"{line_num}: {line}"
               for line_num, line in enumerate(selected_lines,
                                               start=start_line)))
 
-    return result
+    return result + warn_msg
 
 
 def edit_file(filepath: str, old_str: str, new_str: str) -> str:
@@ -86,6 +94,12 @@ def edit_file(filepath: str, old_str: str, new_str: str) -> str:
                 "replacement unique.")
     new_content = content.replace(old_str, new_str, 1)
     path.write_text(new_content, encoding="utf-8")
+    if path.suffix == ".py":
+        try:
+            ast.parse(new_content)
+        except SyntaxError as e:
+            return (f"Successfully updated '{filepath}', but a "
+                    f"SyntaxError was detected at line {e.lineno}: {e.msg}")
     return (f"Successfully updated '{filepath}'.")
 
 
