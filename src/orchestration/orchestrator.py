@@ -145,7 +145,8 @@ class Orchestrator:
                 raise
 
     def complete_task(self,
-                      task: MBPPTaskInput | SWEBenchTaskInput
+                      task: MBPPTaskInput | SWEBenchTaskInput,
+                      mcp_env: Optional[dict[str, str]] = None
                       ) -> SolutionOutput:
         """Execute the agentic loop to solve the task and return solution."""
 
@@ -157,17 +158,12 @@ class Orchestrator:
             id_bench = str(task.task_id)
             mcp_cmd = "python mcp_tools_mbpp.py"
             sandbox_config = None
-            mcp_env = None
         else:
             limits = SWE_LIMITS
             benchmark_type = "swebench"
             id_bench = task.instance_id
             mcp_cmd = "python mcp_tools_swebench.py"
             sandbox_config = load_config("sandbox_swebench.json")
-            mcp_env = {
-                "TESTBED_PATH": host_temp_dir,
-                "SWE_CONTAINER_ID": container_id
-                }
 
         '''#_#_#_# AGENT LOOP START #_#_#_#'''
         solved = False
