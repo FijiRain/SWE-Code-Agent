@@ -11,7 +11,7 @@ from .exception import (KeyQuotaError, ServerError,
                         FatalError, ProviderRequestError)
 from src.models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from src.models.output_data_models import SolutionOutput, StepMetrics
-from src.models.SandboxConfig import load_config  # noqa: F401  # ???
+from src.models.SandboxConfig import load_config
 from src.models.ExecutionResult import ExecutionResult
 from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
 from .py_extractor import extract_code
@@ -155,10 +155,19 @@ class Orchestrator:
             limits = MBPP_LIMITS
             benchmark_type = "mbpp"
             id_bench = str(task.task_id)
+            mcp_cmd = "python mcp_tools_mbpp.py"
+            sandbox_config = None
+            mcp_env = None
         else:
             limits = SWE_LIMITS
             benchmark_type = "swebench"
-            id_bench = str(task.instance_id)
+            id_bench = task.instance_id
+            mcp_cmd = "python mcp_tools_swebench.py"
+            sandbox_config = load_config("sandbox_swebench.json")
+            mcp_env = {
+                "TESTBED_PATH": host_temp_dir,
+                "SWE_CONTAINER_ID": container_id
+                }
 
         '''#_#_#_# AGENT LOOP START #_#_#_#'''
         solved = False
@@ -166,10 +175,7 @@ class Orchestrator:
         current_iterations = 0
         solution = ""
         error = None
-        # with Sandbox("python mcp_tools_mbpp.py", load_config(template))
-        # if swe: send swe template to load_config(), echo=False,
-        # pass mcp_env={"TESTBED_PATH": host_dir}
-        with Sandbox("python mcp_tools_mbpp.py") as sandbox:
+        with Sandbox(mcp_cmd, sandbox_config, mcp_env=mcp_env) as sandbox:
             if self.sandbox_manual is None:
                 self.sandbox_manual = sandbox.get_manual()
             self.build_context(task)
