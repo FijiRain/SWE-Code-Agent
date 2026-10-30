@@ -13,7 +13,7 @@ import uuid
 from src.models.input_data_models import SWEBenchTaskInput
 
 
-def _ensure_image(image: str) -> None:
+def ensure_image(image: str) -> None:
     """Pull the Docker image only if it is not already present locally."""
     inspect_res = subprocess.run(
         ["docker", "image", "inspect", image],
@@ -29,7 +29,7 @@ def _ensure_image(image: str) -> None:
         )
 
 
-def _extract_testbed(image: str, host_dir: Path) -> None:
+def extract_testbed(image: str, host_dir: Path) -> None:
     """Copy /testbed contents (including .git) from image into host_dir."""
     # Create testbed outside current repo for security purposes
     tmp_name = f"smith-init-{uuid.uuid4().hex[:12]}"
@@ -55,7 +55,7 @@ def _extract_testbed(image: str, host_dir: Path) -> None:
 
 @contextmanager
 def swe_docker_env(
-    task: SWEBenchTaskInput,
+    task: SWEBenchTaskInput
 ) -> Generator[tuple[str, str], None, None]:
     """Prepare shared host testbed and running container for SWE-bench.
 
@@ -68,13 +68,13 @@ def swe_docker_env(
     container_id: str | None = None
     prev_sigterm = signal.getsignal(signal.SIGTERM)
 
-    def _handle_sigterm(signum: int, frame: Any) -> None:
+    def handle_sigterm(signum: int, frame: Any) -> None:
         raise SystemExit(128 + signum)
 
-    signal.signal(signal.SIGTERM, _handle_sigterm)
+    signal.signal(signal.SIGTERM, handle_sigterm)
     try:
-        _ensure_image(task.docker_image)
-        _extract_testbed(task.docker_image, host_dir)
+        ensure_image(task.docker_image)
+        extract_testbed(task.docker_image, host_dir)
 
         eval_path = host_dir / "eval.sh"
         eval_path.write_text(
