@@ -31,8 +31,7 @@ def ensure_image(image: str) -> None:
 
 def extract_testbed(image: str, host_dir: Path) -> None:
     """Copy /testbed contents (including .git) from image into host_dir."""
-    # Create testbed outside current repo for security purposes
-    tmp_name = f"smith-init-{uuid.uuid4().hex[:12]}"
+    tmp_name = f"testbed-container-init-{uuid.uuid4().hex[:6]}"
     try:
         subprocess.run(
             ["docker", "create", "--name", tmp_name, image],
@@ -63,11 +62,13 @@ def swe_docker_env(
         A tuple (container_id, host_temp_dir) and guarantees cleanup
         of both the container and temporary directory on exit or SIGTERM.
     """
+    # Create testbed outside current repo for security and .git conflicts
     host_dir = Path(tempfile.mkdtemp(prefix="smith_testbed_")).resolve()
-    container_name = f"smith-{uuid.uuid4().hex[:12]}"
+    container_name = f"agent-container-{uuid.uuid4().hex[:6]}"
     container_id: str | None = None
     prev_sigterm = signal.getsignal(signal.SIGTERM)
 
+    # "frame" is useless but mandatory with the signal signature
     def handle_sigterm(signum: int, frame: Any) -> None:
         raise SystemExit(128 + signum)
 
@@ -76,8 +77,10 @@ def swe_docker_env(
         ensure_image(task.docker_image)
         extract_testbed(task.docker_image, host_dir)
 
+        # write task eval script into eval.sh
         eval_path = host_dir / "eval.sh"
         eval_path.write_text(
+            # to avoid crash from Windows to Linux
             task.eval_script.replace("\r\n", "\n"),
             encoding="utf-8",
         )
@@ -97,6 +100,9 @@ def swe_docker_env(
         )
         container_id = run_res.stdout.strip() or container_name
 
+        # go in the container to add the repertory into the safe ones
+        # to resolve git Users conflicts (Docker root vs current user)
+        # between container and testbed
         subprocess.run(
             [
                 "docker", "exec", container_id,
@@ -105,7 +111,7 @@ def swe_docker_env(
             ],
             capture_output=True,
         )
-
+        # Pause during the agent do complete_task(), assuring the "finally"
         yield container_id, str(host_dir)
     finally:
         signal.signal(signal.SIGTERM, prev_sigterm)
