@@ -40,7 +40,7 @@ def run_SWE(task_file: str, output: str,
         raise ValueError(f"Incorrect file '{task_file}':\n{e}") from e
     except ValidationError as e:
         raise ValueError(
-            f"Invalid MBPP task config in '{task_file}':\n{e}") from e
+            f"Invalid SWE task config in '{task_file}':\n{e}") from e
 
     orchestrator = Orchestrator(model_name, provider_url)
 
