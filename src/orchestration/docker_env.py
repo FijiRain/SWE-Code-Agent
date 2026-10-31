@@ -22,7 +22,7 @@ def ensure_image(image: str) -> None:
     )
     if inspect_res.returncode != 0:
         subprocess.run(
-            ["docker", "pull", image],
+            ["docker", "pull", "--platform", "linux/amd64", image],
             stdout=sys.stderr,
             stderr=sys.stderr,
             check=True,
@@ -34,7 +34,8 @@ def extract_testbed(image: str, host_dir: Path) -> None:
     tmp_name = f"testbed-container-init-{uuid.uuid4().hex[:6]}"
     try:
         subprocess.run(
-            ["docker", "create", "--name", tmp_name, image],
+            ["docker", "create", "--platform",
+             "linux/amd64", "--name", tmp_name, image],
             capture_output=True,
             text=True,
             check=True,
@@ -89,6 +90,7 @@ def swe_docker_env(
         run_res = subprocess.run(
             [
                 "docker", "run", "-d",
+                "--platform", "linux/amd64",
                 "--name", container_name,
                 "-v", f"{host_dir}:/testbed",
                 task.docker_image,
