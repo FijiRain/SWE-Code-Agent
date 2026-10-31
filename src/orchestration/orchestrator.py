@@ -13,7 +13,8 @@ from src.models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from src.models.output_data_models import SolutionOutput, StepMetrics
 from src.models.SandboxConfig import load_config
 from src.models.ExecutionResult import ExecutionResult
-from .prompts import build_mbpp_sys_prompt, build_mbpp_user_prompt
+from .prompts import (build_mbpp_sys_prompt, build_mbpp_user_prompt,
+                      build_swe_sys_prompt, build_swe_user_prompt)
 from .py_extractor import extract_code
 from ..sandbox.api import Sandbox
 
@@ -136,10 +137,6 @@ class Orchestrator:
                 if server_retries > max_server_retries:
                     raise
                 time.sleep(5)
-                # si erreur de serveur, on peut regarder le status_code
-                # renvoyé et dans la classe ServerError
-                # determiner le temps auquel la requete HTTP
-                # indique qu'il faut retry
 
             except FatalError:
                 raise
@@ -172,8 +169,7 @@ class Orchestrator:
         solution = ""
         error = None
         with Sandbox(mcp_cmd, sandbox_config, mcp_env=mcp_env) as sandbox:
-            if self.sandbox_manual is None:
-                self.sandbox_manual = sandbox.get_manual()
+            self.sandbox_manual = sandbox.get_manual()
             self.build_context(task)
             while current_iterations < limits.max_iterations and not solved:
                 current_iterations += 1
@@ -191,14 +187,8 @@ class Orchestrator:
                         "Wrap your code in ```python ... ```."
                     )
                 else:
-                    try:
-                        execution_res: ExecutionResult = sandbox.execute(
-                            sandbox_input
-                        )
-                    except KeyboardInterrupt:
-                        # a verif si ok de quitter comme ca
-                        print("ERROR - Keyboard interruption")
-                        break
+                    execution_res: ExecutionResult = sandbox.execute(
+                                                        sandbox_input)
                     if execution_res.final_answer is not None:
                         solved = True
                         solution = execution_res.final_answer
@@ -238,6 +228,16 @@ class Orchestrator:
                     break
             '''#_#_#_# AGENT LOOP END #_#_#_#'''
 
+            # ensuring final_answer contains the diff --git
+            # Bc LLM can call "final_answer" without "get_patch()"
+            if benchmark_type == "swebench" and "diff --git" not in solution:
+                fallback = sandbox.execute("final_answer(get_patch())")
+                if (
+                        fallback.final_answer
+                        and "diff --git" in fallback.final_answer
+                     ):
+                    solution = fallback.final_answer
+
         total_time = time.time() - start_time
         return SolutionOutput(task_id=id_bench,
                               benchmark=benchmark_type,
@@ -263,13 +263,14 @@ class Orchestrator:
             if self.sandbox_manual is not None:
                 self.sys_prompt = build_mbpp_sys_prompt(self.sandbox_manual)
             else:
-                print("ERROR - No manual found")
-                raise  # A determiner
+                raise RuntimeError("No sandbox manual found")
             self.user_prompt = build_mbpp_user_prompt(task)
         else:
-            # A implémenter pour SWE, str vide pour Pylance
-            self.sys_prompt = ""
-            self.user_prompt = ""
+            if self.sandbox_manual is not None:
+                self.sys_prompt = build_swe_sys_prompt(self.sandbox_manual)
+            else:
+                raise RuntimeError("No sandbox manual found")
+            self.user_prompt = build_swe_user_prompt(task)
 
         self.context = [{"role": "system", "content": self.sys_prompt},
                         {"role": "user", "content": self.user_prompt}]
