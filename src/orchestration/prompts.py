@@ -196,8 +196,8 @@ def build_swe_user_prompt(task: SWEBenchTaskInput) -> str:
     parts = [
         f"Repository: {task.repo} (Instance ID: {task.instance_id})",
         "Working directory: /testbed",
-        f"\n### GitHub Issue Description\n{task.problem_statement.strip()}",
-    ]
+        f"\n### GitHub Issue Description\n{task.problem_statement.strip()}"]
+
     if task.hints_text and task.hints_text.strip():
         parts.append(f"\n### Additional Hints\n{task.hints_text.strip()}")
 
