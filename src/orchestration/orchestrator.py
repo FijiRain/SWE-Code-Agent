@@ -75,7 +75,12 @@ class Orchestrator:
                 response = client.chat.completions.create(
                     model=self.model,
                     messages=self.context,
-                    stop=["Observation:", "Observation\n"]
+                    stop=[
+                        "Observation:",
+                        "Observation\n",
+                        "```Thought",
+                        "```\nThought",
+                    ],
                 )
                 end_time = time.perf_counter()
                 self.step_time = (end_time - start_time) * 1000
@@ -83,7 +88,12 @@ class Orchestrator:
                     self.step_input_tokens = response.usage.prompt_tokens
                     self.step_output_tokens = response.usage.completion_tokens
 
-                return response.choices[0].message.content or ""
+                # Avoid deleting outside backticks from LLM answer
+                # If backticks number is odd, add a triplet manually
+                content = response.choices[0].message.content or ""
+                if content.count("```") % 2 == 1:
+                    content = f"{content.rstrip()}\n```"
+                return content
 
         except APIStatusError as e:
             status = e.status_code
@@ -188,11 +198,39 @@ class Orchestrator:
                     )
                 else:
                     execution_res: ExecutionResult = sandbox.execute(
-                                                        sandbox_input)
-                    if execution_res.final_answer is not None:
-                        solved = True
-                        solution = execution_res.final_answer
+                        sandbox_input
+                    )
                     sandbox_output = self.sandbox_analysis(execution_res)
+                    if execution_res.final_answer is not None:
+                        if benchmark_type != "swebench":
+                            solved = True
+                            solution = execution_res.final_answer
+                        elif "diff --git" in execution_res.final_answer:
+                            solved = True
+                            solution = execution_res.final_answer
+                        else:
+                            patch_res = sandbox.execute(
+                                "final_answer(get_patch())"
+                            )
+                            if (
+                                patch_res.final_answer
+                                and "diff --git" in patch_res.final_answer
+                            ):
+                                solved = True
+                                solution = patch_res.final_answer
+                            else:
+                                prefix = (
+                                    f"{execution_res.stdout}\n"
+                                    if execution_res.stdout
+                                    else ""
+                                )
+                                sandbox_output = (
+                                    f"{prefix}Error: final_answer rejected "
+                                    "because git diff is empty (no tracked "
+                                    "files in /testbed were modified yet). "
+                                    "Use edit_file(...) and run_tests() "
+                                    "before final_answer(get_patch())."
+                                )
 
                 self.context.append(
                     {
