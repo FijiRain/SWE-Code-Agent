@@ -209,15 +209,10 @@ class Orchestrator:
                             solved = True
                             solution = execution_res.final_answer
                         else:
-                            patch_res = sandbox.execute(
-                                "final_answer(get_patch())"
-                            )
-                            if (
-                                patch_res.final_answer
-                                and "diff --git" in patch_res.final_answer
-                            ):
+                            patch = self.force_swe_patch(sandbox)
+                            if patch is not None:
                                 solved = True
-                                solution = patch_res.final_answer
+                                solution = patch
                             else:
                                 prefix = (
                                     f"{execution_res.stdout}\n"
@@ -266,15 +261,11 @@ class Orchestrator:
                     break
             '''#_#_#_# AGENT LOOP END #_#_#_#'''
 
-            # ensuring final_answer contains the diff --git
-            # Bc LLM can call "final_answer" without "get_patch()"
-            if benchmark_type == "swebench" and "diff --git" not in solution:
-                fallback = sandbox.execute("final_answer(get_patch())")
-                if (
-                        fallback.final_answer
-                        and "diff --git" in fallback.final_answer
-                     ):
-                    solution = fallback.final_answer
+            # Security if SWE loop hit a limit before final_answer()
+            if benchmark_type == "swebench" and not solved:
+                patch = self.force_swe_patch(sandbox)
+                if patch is not None:
+                    solution = patch
 
         total_time = time.time() - start_time
         return SolutionOutput(task_id=id_bench,
@@ -358,3 +349,10 @@ class Orchestrator:
         # Cover the case when the LLM forget to write "print(result)"
         return ("Code executed successfully with no output return. "
                 "Remember to use print() to see results.")
+
+    def force_swe_patch(self, sandbox: Sandbox) -> Optional[str]:
+        """Retrieve a valid unified git diff from the SWE-bench sandbox."""
+        res = sandbox.execute("final_answer(get_patch())")
+        if res.final_answer and "diff --git" in res.final_answer:
+            return res.final_answer
+        return None
