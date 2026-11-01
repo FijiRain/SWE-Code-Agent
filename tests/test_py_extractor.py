@@ -53,6 +53,21 @@ def test_extract_final_answer_call_direct():
     assert call == "final_answer('abc')"
 
 
+def test_no_teleport_from_later_code_block():
+    s = (
+        "Thought: Read file.\n"
+        "Code:\n"
+        "```python\n"
+        "print('reading')\n"
+        "```Thought: Submit.\n"
+        "Code:\n"
+        "```python\n"
+        "final_answer(' premature ')\n"
+        "```"
+    )
+    assert extract_code(s) == "print('reading')"
+
+
 if __name__ == "__main__":
     test_extract_final_answer_call_direct()
     test_standard_markdown_block()
@@ -60,4 +75,5 @@ if __name__ == "__main__":
     test_final_answer_outside_block()
     test_only_final_answer()
     test_no_false_positive_in_thought()
+    test_no_teleport_from_later_code_block()
     print("All py_extractor tests passed!")
