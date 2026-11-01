@@ -194,7 +194,7 @@ class Orchestrator:
                     sandbox_input = ""
                     sandbox_output = (
                         "Error: No valid Python code block found. "
-                        "Wrap your code in ```python ... ```."
+                        "You must wrap your code in ```python ... ```."
                     )
                 else:
                     execution_res: ExecutionResult = sandbox.execute(
