@@ -132,8 +132,9 @@ def extract_code(answer: str) -> Optional[str]:
                 if react_code:
                     extracted = react_code
 
-    # Fallback/safeguard: check for final_answer(...) call outside block
-    final_call = extract_final_answer_call(answer)
+    # Fallback/safeguard: check for final_answer(...) call outside fences
+    outside_fences = re.sub(r"```.*?```", "\n", answer, flags=re.DOTALL)
+    final_call = extract_final_answer_call(outside_fences)
     if final_call:
         if extracted is None:
             return final_call
