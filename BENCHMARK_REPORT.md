@@ -1,60 +1,4 @@
-
-# Consignes :
-
-You must produce a benchmark report comparing at least 5 models across at least 2 providers on the same set of at least 3 SWE-bench tasks.
-
-## Setup: 
-
-Which models/providers were compared, which tasks were used, and why those tasks were selected
-
-## Results table: 
-
-For each model × task combination:
-• Pass/Fail
-• Iterations used
-• Total input tokens
-• Total output tokens
-• Wall-clock time
-
-## Provider reliability: 
-
-For each model/provider:
-• Average response time per request
-• Number of retries needed (rate limits, timeouts, errors)
-• Overall availability during benchmark runs
-
-## Intermediary metrics (at least 2 of the following):
-
-• Step at which the agent first reads/edits the file that appears in the final patch
-(exploration efficiency)
-• Step at which test failures first decrease vs baseline (partial progress)
-• Iterations between “tests first pass” and final_answer (submission discipline — zero is ideal)
-
-These metrics can be measured manually by inspecting your solution.json files
-— automation is not required. What matters is the analysis, not the tooling.
-
-## Ablation study: 
-
-At least one before/after comparison of a change to your agent
-(prompt, tools, parameters) on the same tasks with the same model
-
-## Conclusions: 
-
-Which model(s) you selected for your final pipeline and why. Which
-models can be disregarded and why. Based on your data.
-
-The backing solution.json files must be present in your repository.
-
-
-_______________________
-
-Groq: uv run python3 -m agent_mbpp --task-file tests/test_mbpp_task.json --output tests/mbpp_solution.json --model-name "" --provider-url "https://api.groq.com/openai/v1/"
-
-OpenRouter: uv run python3 -m agent_mbpp --task-file tests/test_mbpp_task.json --output tests/mbpp_solution.json --model-name "" --provider-url "https://openrouter.ai/api/v1"
-
-Google AI Studio: uv run python3 -m agent_mbpp --task-file tests/test_mbpp_task.json --output tests/mbpp_solution.json --model-name "" --provider-url "https://generativelanguage.googleapis.com/v1beta/openai/"
-
-# Test MBPP sur une même task (128) et differents LLM:
+# Test MBPP sur une même task (numéro 128) et différents LLM:
 
 ## Google:
 
@@ -217,7 +161,339 @@ NameError: name 'magic_square_test' is not defined
 
 Note : Qwen a halluciné et a mis une balise </think> parasite qui a détruit le reste de l'extraction
 
+______________________________________________________
 
+## Agent execution commands:
 
+Groq: uv run python3 -m agent_mbpp --task-file tests/test_mbpp_task.json --output tests/mbpp_solution.json --model-name "" --provider-url "https://api.groq.com/openai/v1/"
 
+OpenRouter: uv run python3 -m agent_mbpp --task-file tests/test_mbpp_task.json --output tests/mbpp_solution.json --model-name "" --provider-url "https://openrouter.ai/api/v1"
 
+Google AI Studio: uv run python3 -m agent_mbpp --task-file tests/test_mbpp_task.json --output tests/mbpp_solution.json --model-name "" --provider-url "https://generativelanguage.googleapis.com/v1beta/openai/"
+
+# Real benchmark SWE:
+
+Intro et definition des termes du benchmark.
+
+First read/edit on the codebase = exploration efficiency
+
+Submission discipline = when tests passed, how many steps until the agent submit final_answer() without useless or parasite iterations. 0 is ideal
+
+# 1st task - sympy__sympy-14711:
+
+This task was chosen because the subject noticed that it's the easiest one. So it is perfect to benchmark plenty of models in order to select the better ones.
+
+## Provider: Groq
+
+### Model: openai/gpt-oss-120b
+
+PASSED
+Iterations: 4 / 30
+Input tokens: 16243 / 300000
+Output tokens: 1389 / 10000
+Time: 55.7s / 900.0s
+Avg response time/request: 12203.7 ms (12.20s)
+Total retries: 0
+Availability: 100% (4 steps + 0 retries)
+First read/edit on the codebase: @ 2nd step
+Submission discipline: 0
+
+### Model: qwen/qwen3.8-27b
+
+First test:
+
+PASSED but...
+Iterations: 10 / 30
+Input tokens: 46075 / 300000
+Output tokens: 896 / 10000
+Time: 342.7s / 900.0s
+Avg response time/request: 33406.9 ms (33.41s)
+Total retries: 0
+Availibility: 100% (10 steps + 0 retries)
+First read/edit on the codebase: @ 1st step
+Submission discipline: N/A, see note
+
+Notes: Orchestrator architecture saved this test! Model has been interrupted at step 10 because it exceed the Groq max tokens/minute. "force_swe_patch()" method in orchestrator.py forced the agent to generate a patch and saved the task! Because Qwen did the task well, it was just interrupted by Groq server (HTTP 413).
+
+Second test: same event...
+
+Third test (patch 413 errors to rotate API key in orchestrator.py):
+
+PASSED
+Iterations: 4 / 30
+Input tokens: 15645 / 300000
+Output tokens: 289 / 10000
+Time: 77.4s / 900.0s
+Avg response time/request: 17885.7 ms (17.89s)
+Total retries: 0
+Availibility: 100% (4 steps + 0 retries)
+First read/edit on the codebase: @ 1st step
+Submission discipline: 0
+
+## Provider: Openrouter
+
+### Model: nvidia/nemotron-3-ultra-550b-a55b:free
+
+FAILED
+Iterations: 30 / 30 EXCEEDED
+Input tokens: 211860 / 300000
+Output tokens: 3339 / 10000
+Time: 122.8s / 900.0s
+Avg Response Time: 3672.7 ms (3.67s)
+Total retries: 0
+Availibility: 96.8% (30 steps + 1 retries)
+First read/edit on the codebase: @ 2nd step
+Submission discipline: N/A (task failed)
+
+Notes: Nemotron **atrociously** failed the simplest SWE benchmark task... It tried to make a patch with an incorrect Python version, then was persuaded there was a SymPy issue so it uninstalled it. Then it patched the wrong file...
+
+### Model: dots-studio/dots-3-note-preview:free
+
+FAILED
+Iterations: 25 / 30
+Input tokens: 92499 / 300000
+Output tokens: 23303 / 10000
+Time: 270.8s / 900.0s
+Avg Response Time: 10712.9 ms (10.71s)
+Total retries: 1
+Availibility: 96.2% (25 steps + 1 retries)
+First read/edit on the codebase: Model never tried to read_files...
+Submission discipline: N/A (task failed)
+
+Notes: Model kept hallucinating and enjoyed being extremely stubborn by not using any tools and put "think" brackets everywhere.
+
+### Model: nvidia/nemotron-3.5-super-vl:free
+
+PASSED
+Iterations: 24 / 30
+Input tokens: 167037 / 300000
+Output tokens: 6454 / 10000
+Time: 132.1s / 900.0s
+Avg Response Time: 4891.4 ms (4.89s)
+Total retries: 1
+Availibility: 96.0% (24 steps + 1 retries)
+First read/edit on the codebase: @ 1st step
+Submission discipline: 0
+
+### Model: cohere/north-mini-code:free
+
+FAILED
+Iterations: 1 / 30
+Input tokens: 2834 / 300000
+Output tokens: 21088 / 10000 EXCEEDED
+Time: 205.8s / 900.0s
+Avg Response Time: 200664.5 ms (200.66s)
+Total retries: 2
+Availibility: 33.3% (1 steps + 2 retries)
+First read/edit on the codebase: N/A
+Submission discipline: N/A
+
+Notes: the model refused to follow ReAct format and kept hallucinating Observations results.
+
+## Provider: Google AI Studio
+
+### Model: gemini-3.1-flash-lite-preview
+
+PASSED
+Iterations: 19 / 30
+Input tokens: 135416 / 300000
+Output tokens: 1606 / 10000
+Time: 44.0s / 900.0s
+Avg Response Time: 1667.5 ms (1.67s)
+Total retries: 1
+Availibility: 95.0% (19 steps + 1 retries)
+First read/edit on the codebase: @ 1st step
+Submission discipline: 0
+
+### Model: gemini-3-flash-preview
+
+FAILED - TIME OUT
+No solution submitted...
+
+### Model: gemini-3.5-flash-lite
+
+FAILED
+Iterations: 30 / 30 EXCEEDED
+Input tokens: 293575 / 300000
+Output tokens: 4743 / 10000
+Time: 53.1s / 900.0s
+Avg Response Time: 1422.6 ms (1.42s)
+Total retries: 1
+Availibility: 96.8% ((30 steps + 1 retries))
+First read/edit on the codebase: @ 2nd step
+Submission discipline: N/A
+
+Notes: model suffered from an exploration paralysis syndrom: it kept inspecting files without making "edit_file()" tool, so it reached the 30 iterations limit.
+
+# 2nd task - pydata__xarray-4629 :
+
+This task is pertinent for our agent because the LLM is now challenged on a different paradigm: a data analysis issue.
+
+According to the previous tests, it's pointless to try unqualified models that not passed the previous task into an harder SWEbench one. Given that only 4 models passed the previous tests and that we need 5 models to test, the decision was made to keep a really quick but inefficient model: gemini-3.5-flash-lite.
+So here the top qualified models selected for this next task, ranked by efficiency:
+
+- openai/gpt-oss-120b (Groq);
+- qwen/qwen3.8-27b (Groq);
+- gemini-3.1-flash-lite-preview (Google AI Studio);
+- nvidia/nemotron-3.5-super-v1:free (OpenRouter);
+- gemini-3.5-flash-lite (Google AI Studio)
+
+## Provider: Groq
+
+### Model: openai/gpt-oss-120b
+
+PASSED
+Iterations: 8 / 30
+Input tokens: 44983 / 300000
+Output tokens: 1028 / 10000
+Time: 138.9s / 900.0s
+Avg Response Time: 15073.6 ms (15.07s)
+Total retries: 0
+Availibility: 100% (8 steps + 0 retries)
+First read/edit on the codebase: @ 2nd step
+Submission discipline: 0
+
+### Model: qwen/qwen3.8-27b
+
+PASSED
+Iterations: 5 / 30
+Input tokens: 26993 / 300000
+Output tokens: 348 / 10000
+Time: 361.0s / 900.0s
+Avg Response Time: 32728.1 ms (32.73s)
+Total retries: 0
+Availibility: 100% (5 steps + 0 retries)
+First read/edit on the codebase: @ 1st step
+Submission discipline: 0
+
+## Provider: OpenRouter
+
+### Model: nvidia/nemotron-3.5-super-v1:free
+
+PASSED
+Iterations: 5 / 30
+Input tokens: 23724 / 300000
+Output tokens: 642 / 10000
+Time: 69.8s / 900.0s
+Avg Response Time: 1814.5 ms (1.81s)
+Total retries: 2
+Availibility: 71,4% (5 steps + 2 retries)
+First read/edit on the codebase: @ 1st step
+Submission discipline: 0
+
+## Provider: Google AI Studio
+
+### Model: gemini-3.1-flash-lite-preview
+
+PASSED
+Iterations: 8 / 30
+Input tokens: 46059 / 300000
+Output tokens: 1121 / 10000
+Time: 28.4s / 900.0s
+Avg Response Time: 2717.7 ms (2.72s)
+Total retries: 0
+Availibility: 100% (8 steps + 0 retries)
+First read/edit on the codebase: @ 1st step
+Submission discipline: 0
+
+### Model: gemini-3.5-flash-lite
+
+PASSED
+Iterations: 6 / 30
+Input tokens: 34700 / 300000
+Output tokens: 360 / 10000
+Time: 17.7s / 900.0s
+Avg Response Time: 1338.6 ms (1.34s)
+Total retries: 0
+Availibility: 100% (6 steps + 0 retries)
+First read/edit on the codebase: @ 1st step
+Submission discipline: 0
+
+# 3rd task - django__django-11066:
+
+This advanced task is perfect to push the limits of our models with a new paradigm (web back end). The task is what an IRL bug in a production chain can look like.
+
+## Provider: Groq
+
+### Model: openai/gpt-oss-120b
+
+FAILED
+Iterations: 5 / 30
+Input tokens: 27578 / 300000
+Output tokens: 4091 / 10000
+Time: 244.1s / 900.0s
+Avg Response Time: 15152.1 ms (15.15s)
+Total retries: 2
+Availibility: 71.4% (5 steps + 2 retries)
+First read/edit on the codebase: @ 2nd step
+Submission discipline: N/A
+
+### Model: qwen/qwen3.8-27b
+
+PASSED
+Iterations: 11 / 30
+Input tokens: 61894 / 300000
+Output tokens: 677 / 10000
+Time: 662.0s / 900.0s
+Avg Response Time: 37590.9 ms (37.59s)
+Total retries: 1
+Availibility: 91.7% (11 steps + 1 retries)
+First read/edit on the codebase: @ 2nd step
+Submission discipline: N/A
+
+Notes: Solution saved by the agent architecture which use "force_swe_patch()" after an exhausted API keys error.
+
+## Provider: OpenRouter
+
+### Model: nvidia/nemotron-3.5-super-v1:free
+
+PASSED
+Iterations: 4 / 30
+Input tokens: 20700 / 300000
+Output tokens: 553 / 10000
+Time: 75.7s / 900.0s
+Avg Response Time: 2336.0 ms (2.34s)
+Total retries: 2
+Availibility: 100% (4 steps + 2 retries)
+First read/edit on the codebase: @ 1st step
+Submission discipline: 0
+
+## Provider: Google AI Studio
+
+### Model: gemini-3.1-flash-lite-preview
+
+PASSED
+Iterations: 7 / 30
+Input tokens: 44397 / 300000
+Output tokens: 934 / 10000
+Time: 49.0s / 900.0s
+Avg Response Time:  5061.4 ms (5.06s)
+Total retries: 0
+Availibility: 100% (7 steps + 0 retries)
+First read/edit on the codebase: @ 1st step
+Submission discipline: 0
+
+### Model: gemini-3.5-flash-lite
+
+PASSED
+Iterations: 9 / 30
+Input tokens: 52167 / 300000
+Output tokens: 509 / 10000
+Time: 14.5s / 900.0s
+Avg Response Time: 1200.4 ms (1.20s)
+Total retries: 0
+Availibility: 100% (9 steps + 0 retries)
+First read/edit on the codebase: @ 3rd step
+Submission discipline: 1
+
+## Ablation Study 
+
+Parler de quand gpt-oss-120b partait en monologue infini de 3000 tokens et sortait un patch vide, il fallait rajouter \```Thought au stop sequence du LLM pour l'empecher d'halluciner en boucle
+
+## Conclusion
+
+Based on the current benchmark, we can conclude that the top models that are being selected for our final pipeline are:
+
+- 
+- 
+-
