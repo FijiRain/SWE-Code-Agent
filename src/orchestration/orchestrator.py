@@ -97,7 +97,25 @@ class Orchestrator:
 
         except APIStatusError as e:
             status = e.status_code
-            if status in (401, 402, 403, 413, 429):
+            if status in (413, 429):
+                # Waiting time scaled on server header
+                # if token/minute limit is exceeded
+                wait_time = 25.0
+                try:
+                    headers = (getattr(e, "response", None) and
+                               e.response.headers)
+                    if headers:
+                        raw = (headers.get("x-ratelimit-reset-tokens") or
+                               headers.get("retry-after"))
+                        if isinstance(raw, (str, int, float)):
+                            clean = str(raw).rstrip("s").strip()
+                            wait_time = max(float(clean) + 2.0, 5.0)
+                except Exception:
+                    pass
+                time.sleep(wait_time)
+                raise KeyQuotaError(
+                    f"Rate limit exceeded ({status}): {e}") from e
+            elif status in (401, 402, 403):
                 raise KeyQuotaError(
                     f"Quota or rate limit exceeded ({status}): {e}") from e
             elif 500 <= status < 600:
@@ -134,7 +152,6 @@ class Orchestrator:
 
             except KeyQuotaError:
                 self.step_retries += 1
-                time.sleep(10)
                 try:
                     self.key_manager.rotate()
                 except ValueError as quota_err:
