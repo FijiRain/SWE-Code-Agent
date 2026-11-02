@@ -97,7 +97,7 @@ class Orchestrator:
 
         except APIStatusError as e:
             status = e.status_code
-            if status in (401, 402, 403, 429):
+            if status in (401, 402, 403, 413, 429):
                 raise KeyQuotaError(
                     f"Quota or rate limit exceeded ({status}): {e}") from e
             elif 500 <= status < 600:
