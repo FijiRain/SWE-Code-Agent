@@ -17,6 +17,7 @@ from .prompts import (build_mbpp_sys_prompt, build_mbpp_user_prompt,
                       build_swe_sys_prompt, build_swe_user_prompt)
 from .py_extractor import extract_code
 from ..sandbox.api import Sandbox
+from .parse_header import parse_reset_header
 
 
 @dataclass
@@ -100,16 +101,17 @@ class Orchestrator:
             if status in (413, 429):
                 # Waiting time scaled on server header
                 # if token/minute limit is exceeded
-                wait_time = 25.0
+                wait_time = 65.0
                 try:
                     headers = (getattr(e, "response", None) and
                                e.response.headers)
                     if headers:
                         raw = (headers.get("x-ratelimit-reset-tokens") or
                                headers.get("retry-after"))
-                        if isinstance(raw, (str, int, float)):
-                            clean = str(raw).rstrip("s").strip()
-                            wait_time = max(float(clean) + 2.0, 5.0)
+                        if raw:
+                            wait_time = max(
+                                parse_reset_header(raw) + 2.0, 5.0
+                            )
                 except Exception:
                     pass
                 time.sleep(wait_time)
