@@ -134,6 +134,7 @@ class Orchestrator:
 
             except KeyQuotaError:
                 self.step_retries += 1
+                time.sleep(10)
                 try:
                     self.key_manager.rotate()
                 except ValueError as quota_err:
