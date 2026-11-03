@@ -7,15 +7,15 @@ from dataclasses import dataclass
 from typing import Optional
 
 from .key_manager import KeyManager
-from .exception import (KeyQuotaError, ServerError,
-                        FatalError, ProviderRequestError)
+from .exception import (KeyQuotaError, ServerError, FatalError,
+                        ProviderRequestError, RequestTooLargeError)
 from src.models.input_data_models import MBPPTaskInput, SWEBenchTaskInput
 from src.models.output_data_models import SolutionOutput, StepMetrics
 from src.models.SandboxConfig import load_config
 from src.models.ExecutionResult import ExecutionResult
 from .prompts import (build_mbpp_sys_prompt, build_mbpp_user_prompt,
                       build_swe_sys_prompt, build_swe_user_prompt)
-from .py_extractor import extract_code
+from .py_extractor import extract_code, keep_first_block
 from ..sandbox.api import Sandbox
 from .parse_header import parse_reset_header
 
@@ -30,6 +30,10 @@ class Limits:
 
 MBPP_LIMITS = Limits(10, 6000, 1500, 120.0)
 SWE_LIMITS = Limits(30, 300000, 10000, 900.0)
+
+# Characters kept from an old observation when the context is trimmed
+KEPT_OBSERVATION_CHARS = 300
+TRIM_NOTICE = "\n[... output truncated to fit the provider token limit ...]"
 
 
 class Orchestrator:
@@ -98,7 +102,12 @@ class Orchestrator:
 
         except APIStatusError as e:
             status = e.status_code
-            if status in (413, 429):
+            if status == 413:
+                # The prompt alone is above the tokens/minute limit:
+                # waiting cannot make it pass, the context must shrink
+                raise RequestTooLargeError(
+                    f"Request too large ({status}): {e}") from e
+            elif status == 429:
                 # Waiting time scaled on server header
                 # if token/minute limit is exceeded
                 wait_time = 65.0
@@ -161,6 +170,12 @@ class Orchestrator:
                         "All provider API keys have "
                         "been exhausted.") from quota_err
 
+            except RequestTooLargeError:
+                self.step_retries += 1
+                # Shrink the history, give up once nothing is left to trim
+                if not self.trim_context():
+                    raise
+
             except ServerError:
                 server_retries += 1
                 self.step_retries += 1
@@ -170,6 +185,22 @@ class Orchestrator:
 
             except FatalError:
                 raise
+
+    def trim_context(self) -> bool:
+        """Shorten the oldest long observation, False if none is left."""
+        trimmed_size = KEPT_OBSERVATION_CHARS + len(TRIM_NOTICE)
+        # Keep the system prompt, the task and the latest observation
+        for i in range(2, len(self.context) - 1):
+            content = self.context[i].get("content")
+            if (self.context[i]["role"] == "user"
+                    and isinstance(content, str)
+                    and len(content) > trimmed_size):
+                self.context[i] = {
+                    "role": "user",
+                    "content": content[:KEPT_OBSERVATION_CHARS] + TRIM_NOTICE,
+                }
+                return True
+        return False
 
     def complete_task(self,
                       task: MBPPTaskInput | SWEBenchTaskInput,
@@ -208,7 +239,10 @@ class Orchestrator:
                 except ProviderRequestError as e:
                     error = str(e)
                     break
-                self.context.append({"role": "assistant", "content": answer})
+                # Raw answer stays in StepMetrics, the context only keeps
+                # the part that is actually executed
+                self.context.append({"role": "assistant",
+                                     "content": keep_first_block(answer)})
                 sandbox_input = extract_code(answer)
                 if sandbox_input is None:
                     sandbox_input = ""

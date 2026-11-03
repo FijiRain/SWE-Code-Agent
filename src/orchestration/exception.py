@@ -10,6 +10,12 @@ class KeyQuotaError(ProviderRequestError):
     pass
 
 
+class RequestTooLargeError(ProviderRequestError):
+    """Raised when a single request exceeds the provider tokens limit."""
+
+    pass
+
+
 class ServerError(ProviderRequestError):
     """Raised when the remote provider server encounters an error."""
 

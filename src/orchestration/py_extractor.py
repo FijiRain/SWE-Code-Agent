@@ -92,6 +92,16 @@ def extract_final_answer_call(text: str) -> Optional[str]:
     return None
 
 
+def keep_first_block(answer: str) -> str:
+    """Cut an LLM answer right after its first fenced code block."""
+    # Only the first block is executed: any hallucinated follow-up steps
+    # would bloat the context and mislead the model on the next turn
+    match = re.search(r"```[^\n]*\n.*?```", answer, re.DOTALL)
+    if not match:
+        return answer
+    return answer[:match.end()]
+
+
 def extract_code(answer: str) -> Optional[str]:
     """Extract executable Python code from various LLM output formats."""
     if not answer or not answer.strip():

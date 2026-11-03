@@ -2,6 +2,7 @@ from src.tools.path_utils import (resolve_testbed_path, get_testbed_root,
                                   to_display_path)
 import subprocess
 import os
+import re
 import sys
 import json
 
@@ -84,12 +85,16 @@ def run_swebench_tests() -> str:
     """Run the SWE-bench evaluation script inside the testbed repository.
 
     Returns:
-        Captured STDOUT and STDERR from the evaluation script (truncated if
-        exceeding 15000 characters), or an error message string.
+        Captured STDOUT and STDERR from the evaluation script (only the
+        last 2000 characters, where the test summary is), or an error
+        message string.
     """
     repo = get_testbed_root()
     timeout = 300
-    max_size = 15000
+    # The sandbox prints only the first 4000 characters of stdout:
+    # stay well below it so the test summary at the end stays visible
+    # without filling the provider tokens/minute budget
+    max_size = 2000
     container_id = os.environ.get("SWE_CONTAINER_ID")
     testbed_env = os.environ.get("TESTBED_PATH")
 
@@ -126,9 +131,12 @@ def run_swebench_tests() -> str:
     except Exception as e:
         return f"Error executing command {e}"
 
+    # Nested bash xtrace lines ("++ ...", conda activation) are pure noise
+    stderr = "\n".join(line for line in process.stderr.splitlines()
+                       if not re.match(r"\+{2,} ", line))
     result = (f"Exit code: {process.returncode}\n"
               f"STDOUT:\n{process.stdout}\n"
-              f"STDERR:\n{process.stderr}")
+              f"STDERR:\n{stderr}")
     warn_msg = ""
     if len(result) > max_size:
         truncated = len(result) - max_size
