@@ -64,7 +64,10 @@ def get_patch() -> str:
         The git diff output as a string, or an error message if git diff
         fails or times out.
     """
-    repo = get_testbed_root()
+    try:
+        repo = get_testbed_root()
+    except ValueError as e:
+        return f"Error: {e}"
     timeout = 60
     command = ["git", "-c", "core.fileMode=false", "diff"]
     try:
@@ -87,7 +90,10 @@ def run_swebench_tests() -> str:
         Captured STDOUT and STDERR from the evaluation script (truncated if
         exceeding 15000 characters), or an error message string.
     """
-    repo = get_testbed_root()
+    try:
+        repo = get_testbed_root()
+    except ValueError as e:
+        return f"Error: {e}"
     timeout = 300
     max_size = 15000
     container_id = os.environ.get("SWE_CONTAINER_ID")

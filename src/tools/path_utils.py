@@ -3,13 +3,13 @@ from pathlib import Path
 
 
 def get_testbed_root() -> Path:
-    """Return the resolved testbed root directory from TESTBED_PATH or cwd."""
+    """Return the resolved testbed root directory from TESTBED_PATH."""
     value = os.environ.get("TESTBED_PATH")
     if value and value.strip():
-        path = Path(value).resolve()
-    else:
-        path = Path.cwd().resolve()
-    return path
+        return Path(value).resolve()
+    if Path("/testbed").exists():
+        return Path("/testbed").resolve()
+    raise ValueError("TESTBED_PATH is not set.")
 
 
 def to_display_path(file: Path) -> str:

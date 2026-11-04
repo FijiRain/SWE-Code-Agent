@@ -38,8 +38,11 @@ def search_code(pattern: str, file_pattern: str = "*") -> str:
         message if no matches are found or the regex is invalid.
     """
     max_match = 100
+    try:
+        testbed_root = get_testbed_root()
+    except ValueError as e:
+        return f"Error: {e}"
 
-    testbed_root = get_testbed_root()
     try:
         regex = re.compile(pattern)
     except re.error:
@@ -77,7 +80,10 @@ def search_function_or_class_definition_in_code(name: str) -> str:
         Definition locations formatted as '<filepath>:<line_num> <line>',
         or a message if no definition is found.
     """
-    testbed_root = get_testbed_root()
+    try:
+        testbed_root = get_testbed_root()
+    except ValueError as e:
+        return f"Error: {e}"
     files = get_clean_files(testbed_root, "*.py")
     result = []
     for file in files:
@@ -118,6 +124,10 @@ def find_references(name: str, filepath: str = "", line: int = -1) -> str:
         or an error/status message string.
     """
     max_match = 100
+    try:
+        testbed_root = get_testbed_root()
+    except ValueError as e:
+        return f"Error: {e}"
 
     if not name or not name.strip():
         return "Error: name cannot be empty."
@@ -131,7 +141,7 @@ def find_references(name: str, filepath: str = "", line: int = -1) -> str:
             return f"Error: {filepath} is not a file or do not exist"
         files = [path]
     else:
-        files = get_clean_files(get_testbed_root(), "*.py")
+        files = get_clean_files(testbed_root, "*.py")
 
     pattern = r"\b" + re.escape(name) + r"\b"
     regex = re.compile(pattern)
