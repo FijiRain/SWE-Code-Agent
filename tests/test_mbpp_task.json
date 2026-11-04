@@ -1,7 +1,13 @@
-{                                                                                                                      
-    "task_id": 1,                                                                                                        
-    "task_definition": "Write a function to find the minimum sum of a path in a triangle.",                              
-    "function_definition": "def min_sum_path(A):",                                                                       
-    "test_imports": [],                                                                                                  
-    "test_list": ["assert min_sum_path([[2], [3, 4], [6, 5, 7], [4, 1, 8, 3]]) == 11"]                                   
-}
+  {
+    "task_id": 128,
+    "split": "test",
+    "task_definition": "Write a function to shortlist words that are longer than n from a given list of words.",
+    "function_definition": "def long_words(n, str):",
+    "code": "def long_words(n, str):\n    word_len = []\n    txt = str.split(\" \")\n    for x in txt:\n        if len(x) > n:\n            word_len.append(x)\n    return word_len\t",
+    "test_imports": [],
+    "test_list": [
+      "assert long_words(3,\"python is a programming language\")==['python','programming','language']",
+      "assert long_words(2,\"writing a program\")==['writing','program']",
+      "assert long_words(5,\"sorting list\")==['sorting']"
+    ]
+  }

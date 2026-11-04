@@ -18,6 +18,7 @@ dependencies = [
     "pydantic",
     "mcp[cli]<2",
     "python-dotenv>=1.2.4",
+    "requests>=2.34.2",
 ]
 
 [tool.uv]
