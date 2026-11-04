@@ -287,7 +287,8 @@ class Orchestrator:
                         "content": f"Observation:\n{sandbox_output}",
                     }
                 )
-                # resumer l'historique pour SWE eventuellement
+
+                self.compress_context(task)
 
                 step = StepMetrics(
                     step=current_iterations,
@@ -410,3 +411,11 @@ class Orchestrator:
         if res.final_answer and "diff --git" in res.final_answer:
             return res.final_answer
         return None
+
+    def compress_context(self,
+                         task: MBPPTaskInput | SWEBenchTaskInput) -> None:
+        """Compress agent context to save input tokens."""
+        if isinstance(task, MBPPTaskInput) and len(self.context) > 6:
+            del self.context[2:4]
+        else:
+            pass
