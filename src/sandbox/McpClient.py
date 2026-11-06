@@ -72,6 +72,7 @@ class McpClient:
             ValueError: If the command is empty.
         """
         self._url: str | None = None
+        _env = env if env else dict(os.environ)
         kind = self.server_kind(command)
         if kind == "http":
             self._url = command
@@ -87,7 +88,7 @@ class McpClient:
             self._params = StdioServerParameters(
                 command=parts[0],
                 args=parts[1:],
-                env=env
+                env=_env
             )
         self._stack = AsyncExitStack()
 
