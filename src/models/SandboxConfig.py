@@ -79,8 +79,8 @@ class SandboxConfig(BaseModel):
                               description="global name space")
     max_tool_time_seconds: int = 5
     max_memory_mb: int = 512
-    max_len_output: int = 1000
-    max_len_tool_output: int = 3000
+    max_len_output: int = 4000
+    max_len_tool_output: int = 1000000
     max_execution_time_seconds: int = 30
 
 
