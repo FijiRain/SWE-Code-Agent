@@ -9,7 +9,8 @@ load_dotenv()
 
 
 def run_MBPP(task_file: str, output: str,
-             model_name: str, provider_url: str) -> None:
+             model_name: str = "qwen/qwen3.8-27b",
+             provider_url: str = "https://api.groq.com/openai/v1/") -> None:
     """Load an MBPP task, run the orchestrator, and write the solution."""
     try:
         with open(task_file, 'r') as f:
@@ -31,7 +32,8 @@ def run_MBPP(task_file: str, output: str,
 
 
 def run_SWE(task_file: str, output: str,
-            model_name: str, provider_url: str) -> None:
+            model_name: str = "qwen/qwen3.8-27b",
+            provider_url: str = "https://api.groq.com/openai/v1/") -> None:
     """Load a SWE-bench task, run the orchestrator, and write the patch."""
     try:
         with open(task_file, 'r') as f:
