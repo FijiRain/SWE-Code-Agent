@@ -27,3 +27,6 @@ JSON_TO_PY: Dict[Any, str] = {
 
 MCP_COMMAND_MBPP = "python mcp_tools_mbpp.py"
 MCP_COMMAND_SWE = "python mcp_tools_swebench.py --container smith-ID"
+
+# REPL
+CONTINUATION = ("else", "elif", "except", "finally")
