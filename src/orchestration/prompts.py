@@ -25,26 +25,31 @@ Code:
 {sandbox_manual}
 
 ### WORKFLOW
-1. Put standalone code (imports + exact `def` signature) in raw quotes `r'''...'''` (preserves regex `\\1`, `\\d`, `\\w`) and run `print(run_tests(code, tests))`, checking edge cases (e.g. 1-char / empty inputs).
-2. Once `run_tests` returns `"success": true`, immediately call `final_answer(r'''...''')` with the full standalone code string.
+1. Put standalone code (imports used by the tests, e.g. `import math`, + exact `def` signature) in raw quotes `r'''...'''` (preserves regex `\\1`, `\\d`, `\\w`). Never define the function outside this string.
+2. Step 1: copy the given assertions VERBATIM into `tests = [...]`. Variables persist, so later steps reuse `tests` without retyping it (redefine it only after a timeout).
+3. Test and submit in the SAME block: `final_answer(code)` runs only if the official tests pass (see example).
 
-Example test:
-Thought: Test candidate code with `run_tests`.
+### HIDDEN TESTS
+The grader also runs hidden assertions on other inputs; the given tests are only a sample.
+- NEVER change the expected values of the given assertions: if they fail, fix the code, not the tests.
+- Match the expected outputs exactly: same type (int vs float: use `//` when results are ints; list vs tuple), same order.
+- If the given tests are trivial (result 0, exact division, no reordering), they do not decide between readings: implement the classic textbook algorithm for the task so the general case is right.
+
+### SANDBOX RULES
+- Never assign to `run_tests`, `final_answer` or any tool name.
+
+Example (step 1):
+Thought: Test candidate code and submit if official tests pass.
 Code:
 ```python
+tests = ["assert is_even(2) == True", "assert is_even(3) == False"]
 code = r'''def is_even(n):
     return n % 2 == 0
 '''
-print(run_tests(code, ["assert is_even(2) == True"]))
-```
-
-Example submit:
-Thought: Tests passed; submit standalone code.
-Code:
-```python
-final_answer(r'''def is_even(n):
-    return n % 2 == 0
-''')
+r = run_tests(code, tests)
+print(r)
+if '"success": true' in r:
+    final_answer(code)
 ```
 """
 
@@ -57,7 +62,7 @@ def build_mbpp_user_prompt(task: MBPPTaskInput) -> str:
     return (f"Here the current problem you need to solve: {task.task_definition}\n"
             f"Expected function signature: {task.function_definition}\n"
             f"When it's necessary and specified, if not empty, you must import: {task.test_imports}\n"
-            f"Test assertions you must validate: {task.test_list}")
+            f"Test assertions you must validate (copy verbatim as `tests`): {task.test_list}")
 
 FAKE_SANDBOX_MANUAL_SWE = '''
 - read_file(filepath, start_line, end_line) # Read the content of a file with line numbers.
