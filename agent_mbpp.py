@@ -1,9 +1,11 @@
+"""Command-line entry point to run the agent on an MBPP task."""
 import sys
 from fire import Fire
 from src.launcher import run_MBPP
 
 
 def main() -> None:
+    """Run the MBPP launcher from the command line and report errors."""
     try:
         Fire(run_MBPP)
     except Exception as e:

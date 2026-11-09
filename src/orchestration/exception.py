@@ -1,3 +1,6 @@
+"""Exceptions raised on LLM provider request failures."""
+
+
 class ProviderRequestError(Exception):
     """Base exception for provider request failures."""
 

@@ -1,3 +1,4 @@
+"""MCP server exposing the SWE-bench tools (files, search, tests)."""
 import argparse
 import sys
 from typing import Any, Callable, Literal

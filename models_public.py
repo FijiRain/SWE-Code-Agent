@@ -1,5 +1,6 @@
 # ABOUTME: Student-facing Pydantic models for the moulinette evaluation contract.
 # ABOUTME: Students copy this file into their project — it defines the JSON schema the moulinette expects.
+"""Public Pydantic models of the moulinette evaluation contract."""
 from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field

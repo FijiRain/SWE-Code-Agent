@@ -1,3 +1,4 @@
+"""Docker environment setup for SWE-bench tasks."""
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
@@ -71,6 +72,7 @@ def swe_docker_env(
 
     # "frame" is useless but mandatory with the signal signature
     def handle_sigterm(signum: int, frame: Any) -> None:
+        """Turn SIGTERM into SystemExit so the cleanup code runs."""
         raise SystemExit(128 + signum)
 
     signal.signal(signal.SIGTERM, handle_sigterm)

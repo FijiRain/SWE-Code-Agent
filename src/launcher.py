@@ -1,3 +1,4 @@
+"""Load benchmark tasks, run the orchestrator and save solutions."""
 import os
 from dotenv import load_dotenv
 from pydantic import ValidationError

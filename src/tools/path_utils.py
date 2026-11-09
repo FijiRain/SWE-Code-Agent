@@ -1,3 +1,4 @@
+"""Helpers to resolve and display paths inside the testbed."""
 import os
 from pathlib import Path
 
