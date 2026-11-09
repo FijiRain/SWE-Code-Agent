@@ -1,3 +1,4 @@
+"""Extraction of executable Python code from LLM responses."""
 import io
 import json
 import re

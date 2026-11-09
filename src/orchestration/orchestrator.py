@@ -1,3 +1,4 @@
+"""Agent loop driving the LLM and the sandbox to solve tasks."""
 import os
 import time
 from openai import (OpenAI, APIStatusError,
@@ -22,6 +23,7 @@ from .parse_header import parse_reset_header
 
 @dataclass
 class Limits:
+    """Resource limits (steps, tokens, time) applied to one task."""
     max_iterations: int
     max_input_tokens: int
     max_output_tokens: int

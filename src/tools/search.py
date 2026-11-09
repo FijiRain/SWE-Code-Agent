@@ -1,3 +1,4 @@
+"""Code search tools (regex, definitions, references) for the testbed."""
 from src.tools.path_utils import (get_testbed_root, resolve_testbed_path,
                                   to_display_path)
 from pathlib import Path

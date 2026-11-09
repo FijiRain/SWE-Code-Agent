@@ -1,3 +1,4 @@
+"""MCP server exposing the MBPP tools (run_tests) to the sandbox."""
 from src.tools.execution import run_mbpp_tests as run_tests
 from mcp.server.fastmcp import FastMCP
 from typing import Literal

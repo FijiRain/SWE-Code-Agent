@@ -1,3 +1,6 @@
+"""Parsing of provider rate-limit reset headers."""
+
+
 def parse_reset_header(raw: object) -> float:
     """Parse ratelimit reset strings (e.g. '1m26.4s', '42.9s') into seconds."""
     if not isinstance(raw, (str, int, float)):

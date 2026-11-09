@@ -81,8 +81,8 @@ MainMessage = Annotated[
     Field(discriminator="type"),
 ]
 
-_WORKER_ADAPTER: TypeAdapter = TypeAdapter(WorkerMessage)
-_MAIN_ADAPTER: TypeAdapter = TypeAdapter(MainMessage)
+_WORKER_ADAPTER: TypeAdapter[WorkerMessage] = TypeAdapter(WorkerMessage)
+_MAIN_ADAPTER: TypeAdapter[MainMessage] = TypeAdapter(MainMessage)
 
 
 def send_message(conn: Connection, message: BaseModel) -> None:

@@ -43,9 +43,6 @@ install:
 	@echo "$(GREEN)All dependencies successfully installed$(RESET)"
 	@echo "\n$(SUCCESS)Project can now be run safely!$(RESET)"
 
-run:
-	@$(UVRUN) -m $(EXE)
-
 lint:
 	@echo "$(BOLD)Verifying project source code:$(RESET)"
 

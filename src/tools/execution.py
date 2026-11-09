@@ -1,3 +1,4 @@
+"""Command, test and patch execution tools for the testbed."""
 from src.tools.path_utils import (resolve_testbed_path, get_testbed_root,
                                   to_display_path)
 import subprocess
