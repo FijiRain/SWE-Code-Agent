@@ -95,13 +95,14 @@ def code_worker_loop(
         "__name__": config.sandbox_name,
     }
 
+    protected: Dict[str, Any] = {}
     for spec in tools.values():
         if not spec.name.isidentifier() or keyword.iskeyword(spec.name):
             continue
-        namespace[spec.name] = make_tools_wrapper(spec, conn)
+        protected[spec.name] = make_tools_wrapper(spec, conn)
 
     if tools:
-        namespace["tool_help"] = make_tool_help(tools)
+        protected["tool_help"] = make_tool_help(tools)
 
     state_final_answer: Dict = {}
     state_final_answer["answer"] = None
@@ -110,7 +111,8 @@ def code_worker_loop(
         """Record the final answer and stop the running code."""
         state_final_answer["answer"] = str(value)
         raise FinalAnswerSignal(value)
-    namespace["final_answer"] = final_answer
+    protected["final_answer"] = final_answer
+    namespace.update(protected)
 
     send_message(conn, ReadyMsg())
     while True:
@@ -125,6 +127,7 @@ def code_worker_loop(
             break
 
         state_final_answer["answer"] = None
+        namespace.update(protected)
         buffer = PipeWriter(conn)
         exec_res = ExecutionResult()
         try:
