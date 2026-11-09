@@ -11,7 +11,9 @@ load_dotenv()
 
 def run_MBPP(task_file: str, output: str,
              model_name: str = "gemini-3.1-flash-lite-preview",
-             provider_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/") -> None:
+             provider_url: str =
+             "https://generativelanguage.googleapis.com/v1beta/openai/"
+             ) -> None:
     """Load an MBPP task, run the orchestrator, and write the solution."""
     try:
         with open(task_file, 'r') as f:
