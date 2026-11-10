@@ -1,6 +1,4 @@
-# ABOUTME: Student-facing Pydantic models for the moulinette evaluation contract.
-# ABOUTME: Students copy this file into their project — it defines the JSON schema the moulinette expects.
-"""Public Pydantic models of the moulinette evaluation contract."""
+"""Public Pydantic models of the evaluation contract."""
 from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel, Field
@@ -30,7 +28,7 @@ class SolutionOutput(BaseModel):
     """Output from student solution — required format for evaluation.
 
     This is the JSON structure your agent must produce and write to solution.json.
-    The moulinette validates this against task correctness and metrics limits.
+    The evaluation harness validates this against task correctness and metrics limits.
     """
     task_id: str = Field(..., description="Task identifier (MBPP task_id as string, or SWE-bench instance_id)")
     benchmark: str = Field(..., description="Benchmark type: 'mbpp' or 'swebench'")
@@ -60,7 +58,7 @@ class SandboxConfig(BaseModel):
 
 
 class MBPPTaskInput(BaseModel):
-    """Input for an MBPP task — provided by the moulinette.
+    """Input for an MBPP task — provided by the evaluation harness.
 
     Your agent receives this as the task definition to solve.
     """
@@ -72,7 +70,7 @@ class MBPPTaskInput(BaseModel):
 
 
 class SWEBenchTaskInput(BaseModel):
-    """Input for a SWE-bench task — provided by the moulinette.
+    """Input for a SWE-bench task — provided by the evaluation harness.
 
     Your agent receives this and must produce a git patch that fixes the issue.
     """
