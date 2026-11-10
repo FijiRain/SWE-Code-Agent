@@ -1,1 +1,1 @@
-"""Agent Smith package."""
+"""SWE-Code-Agent package."""

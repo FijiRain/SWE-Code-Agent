@@ -48,7 +48,8 @@ class SolutionOutput(BaseModel):
     """Output from student solution, required format for evaluation.
     This is the JSON structure your agent must produce and write to solution.
     json.
-    The moulinette validates this against task correctness and metrics limits.
+    The evaluation harness validates this against task correctness
+    and metrics limits.
     """
     task_id: str = Field(...,
                          description="Task identifier"

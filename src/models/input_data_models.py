@@ -15,7 +15,7 @@ class MBPPTaskInput(BaseModel):
 
 # SWE Pydantic model
 class SWEBenchTaskInput(BaseModel):
-    """Input for a SWE-bench task, provided by the moulinette.
+    """Input for a SWE-bench task, provided by the evaluation harness.
     Your agent receives this and must produce a git patch that fixes
     the issue.
     """

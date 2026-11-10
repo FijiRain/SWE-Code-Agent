@@ -1,4 +1,3 @@
-"""Docker environment setup for SWE-bench tasks."""
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
@@ -65,7 +64,7 @@ def swe_docker_env(
         of both the container and temporary directory on exit or SIGTERM.
     """
     # Create testbed outside current repo for security and .git conflicts
-    host_dir = Path(tempfile.mkdtemp(prefix="smith_testbed_")).resolve()
+    host_dir = Path(tempfile.mkdtemp(prefix="swe_testbed_")).resolve()
     container_name = f"agent-container-{uuid.uuid4().hex[:6]}"
     container_id: str | None = None
     prev_sigterm = signal.getsignal(signal.SIGTERM)
