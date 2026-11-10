@@ -9,7 +9,7 @@ CACHE_DIR = $(CURDIR)/.uv_cache
 TRASH = $(SRC)/__pycache__ $(VENV) .mypy_cache __pycache__ data/output
 
 FLAGS = --warn-return-any --warn-unused-ignores --ignore-missing-imports \
-		--disallow-untyped-defs --check-untyped-defs --exclude moulinette
+		--disallow-untyped-defs --check-untyped-defs --exclude agent_tester
 
 # ANSI codes
 GREEN = \033[0;32m
