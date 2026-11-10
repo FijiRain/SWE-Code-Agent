@@ -1,4 +1,4 @@
-# Agent Smith — SWE-bench Model Benchmark Report
+# SWE-Code-Agent — SWE-bench Model Benchmark Report
 
 ## Quick Reference: Agent Execution Commands
 
