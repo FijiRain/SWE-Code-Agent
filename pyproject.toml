@@ -1,11 +1,11 @@
 [project]
-name = "agent-smith"
+name = "swe-code-agent"
 version = "0.1.0"
-description = "Add your description here"
+description = "Autonomous Software Engineering Code Agent Framework"
 readme = "README.md"
 authors = [
     { name = "anate", email = "anatole.farenc2002@gmail.com" },
-    { name = "tod"},
+    { name = "theaud", email = "theaud.moga@gmail.com"},
     { name = "alix"}
 ]
 requires-python = ">=3.10"
